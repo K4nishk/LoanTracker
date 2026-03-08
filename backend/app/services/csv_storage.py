@@ -96,8 +96,9 @@ class CSVStorageService:
             now = datetime.utcnow()
 
             # Calculate initial status
+            # 1970-01-01 means "no due date" - always active
             status = LoanStatus.ACTIVE
-            if loan_data.due_date < date.today():
+            if loan_data.due_date != date(1970, 1, 1) and loan_data.due_date < date.today():
                 status = LoanStatus.OVERDUE
 
             new_record = {

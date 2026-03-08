@@ -1,38 +1,47 @@
 # 🏦 LoanTracker - Loan Management System
 
-**Version 1.0.0** | Production-Ready MVP
+**Version 1.0.1** | Production-Ready MVP
 
-A secure, user-friendly loan tracking system with commission calculator, data encryption, CSV import/export, and customizable UI themes. Perfect for individuals and small businesses managing loan records.
+A secure, user-friendly loan tracking system with Interest Calculator, data encryption, CSV import/export, and customizable UI themes. Perfect for individuals and small businesses managing loan records in INR.
 
-![LoanTracker](https://img.shields.io/badge/version-1.0.0-blue.svg)
-![Python](https://img.shields.io/badge/python-3.11+-green.svg)
+![LoanTracker](https://img.shields.io/badge/version-1.0.1-blue.svg)
+![Python](https://img.shields.io/badge/python-3.8+-green.svg)
 ![FastAPI](https://img.shields.io/badge/fastapi-latest-green.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
+
+---
+
+## 🚀 Quick Start
+
+See [QUICKSTART.md](QUICKSTART.md) for instant setup (3 steps, 2 minutes).
 
 ---
 
 ## ✨ Features
 
 ### Core Functionality
-- ✅ **Create, Read, Update, Delete** loan records with 7 fields
-- ✅ **Commission Calculator** - Calculate broker commissions on loan interest
-- ✅ **CSV Import/Export** - Import historical data, export reports
+- ✅ **Create, Read, Update, Delete** loan records with full validation
+- ✅ **Interest Calculator** - Calculate interest and commissions by borrower or group
+- ✅ **CSV Import/Export** - Import historical data, export detailed reports
 - ✅ **Multiple storage options**: CSV (default) or SQLite
 - ✅ **Optional encryption** for sensitive data (AES-256)
 - ✅ **Historical tracking** with audit trail
+- ✅ **INR Currency** - All amounts in Indian Rupees (₹) with proper formatting
 
 ### User Interface
 - 🎨 **4 Beautiful Themes**: Modern, Classic, Dark, Minimal
 - 📱 **Responsive Design**: Works on desktop and tablets
 - 🔄 **Real-time Updates**: Instant feedback on operations
 - 📊 **Rich Reports**: Statistics by borrower, depositor, status
-- 📥 **Export to CSV**: One-click report and commission exports
+- 📥 **Export to CSV**: One-click report and interest calculator exports
+- 🔢 **Serial Numbers**: YYYY/xxx format for easy reference
 
 ### Business Features
-- 💰 **Commission Calculator**: Calculate commissions by borrower or group
+- 💰 **Interest Calculator**: Detailed breakdown with interest and commission calculations
 - 📈 **5 Report Types**: Filter by borrower name/group, depositor name/group, due date
 - 📁 **Bulk Import**: Upload CSV files with historical loan data
 - 📅 **Optional Due Dates**: Default to 1970-01-01 for perpetual loans
+- 🇮🇳 **Indian Market**: Designed for INR transactions with proper formatting
 
 ### Security & Privacy
 - 🔒 **AES-256 Encryption** (optional, gracefully disabled if unavailable)
@@ -277,9 +286,42 @@ For more issues, see **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)**
 - Check logs: `logs/loantracker.log`
 
 ### Documentation
-- Start with user guide for your platform
-- Review business requirements for formulas
-- Check architecture docs for technical details
+
+**Quick Access**:
+- [QUICKSTART.md](QUICKSTART.md) - Get started in 2 minutes
+- [User Guides](guides/) - Platform-specific guides
+- [Technical Docs](docs/) - Architecture and business requirements
+- [Testing](testing/) - Test plans and guides
+- [Updates](references/mvp1/updates/) - Version history and changes
+
+**Folder Structure**:
+```
+LoanTracker/
+├── README.md                     # This file
+├── QUICKSTART.md                 # Quick start guide
+├── guides/                       # User guides
+│   ├── USER_GUIDE_MAC.md
+│   ├── USER_GUIDE_WINDOWS.md
+│   ├── DEMO_GUIDE.md
+│   ├── TROUBLESHOOTING.md
+│   └── WINDOWS_SETUP.md
+├── docs/                         # Technical documentation
+│   ├── 01-architecture-and-models.md
+│   ├── 02-coding-patterns-and-style.md
+│   ├── 03-frontend-architecture.md
+│   └── 04-business-requirements.md
+├── testing/                      # Testing documentation
+│   ├── TEST_PLAN.md
+│   ├── TEST_SUITE_GUIDE.md
+│   └── RUN_TESTS.md
+└── references/mvp1/updates/      # Version history
+    ├── LATEST_CHANGES.md
+    ├── UPDATES_SUMMARY.md
+    ├── STATUS.md
+    ├── RCA_422_ERROR.md
+    ├── IMPLEMENTATION_PLAN.md
+    └── SESSION_SUMMARY.md
+```
 
 ---
 
@@ -298,10 +340,12 @@ MIT License - See LICENSE file for details
 | Data entry (7 fields) | ✅ Complete | Including optional due_date |
 | Delete records | ✅ Complete | Soft delete implemented |
 | Generate reports | ✅ Complete | 5 filter types |
-| Commission calculator | ✅ Complete | With CSV export |
+| Interest Calculator | ✅ Complete | Enhanced format with detailed breakdown |
 | CSV import | ✅ Complete | Handles missing fields |
 | 4 UI themes | ✅ Complete | Modern, Classic, Dark, Minimal |
-| CSV export | ✅ Complete | Reports and commission |
+| CSV export | ✅ Complete | Reports and interest calculator |
+| Serial Numbers (SNo) | ✅ Complete | YYYY/xxx format |
+| INR Currency Support | ✅ Complete | All amounts in ₹ |
 | Docker deployment | ✅ Complete | docker-compose ready |
 | Encryption (optional) | ✅ Complete | Graceful fallback |
 | User guides | ✅ Complete | Mac, Windows, Demo |

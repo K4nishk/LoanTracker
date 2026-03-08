@@ -4,7 +4,10 @@
       "Bash(chmod:*)",
       "Bash(python3:*)",
       "Bash(./package-windows.sh:*)",
-      "Bash(unzip:*)"
+      "Bash(unzip:*)",
+      "Bash(pip3 install:*)",
+      "Bash(source venv/bin/activate)",
+      "Bash(python -m pytest:*)"
     ]
   }
 }

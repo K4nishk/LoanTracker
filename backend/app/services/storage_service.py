@@ -104,8 +104,9 @@ class StorageService:
             now = datetime.utcnow()
 
             # Calculate initial status
+            # 1970-01-01 means "no due date" - always active
             status = LoanStatus.ACTIVE
-            if loan_data.due_date < date.today():
+            if loan_data.due_date != date(1970, 1, 1) and loan_data.due_date < date.today():
                 status = LoanStatus.OVERDUE
 
             new_record = {
@@ -158,9 +159,11 @@ class StorageService:
             loans = []
             for _, row in df.iterrows():
                 loan_dict = row.to_dict()
-                # Ensure empty strings become None for optional fields
-                loan_dict['borrower_group'] = loan_dict.get('borrower_group') or None
-                loan_dict['depositor_group'] = loan_dict.get('depositor_group') or None
+                # Ensure empty strings and NaN become None for optional fields
+                for field in ['borrower_group', 'depositor_group']:
+                    value = loan_dict.get(field)
+                    if pd.isna(value) or value == '':
+                        loan_dict[field] = None
                 loans.append(LoanResponse(**loan_dict))
 
             return loans
@@ -178,8 +181,11 @@ class StorageService:
                 raise LoanNotFoundException(f"Loan with ID {loan_id} not found")
 
             loan_dict = loan_df.iloc[0].to_dict()
-            loan_dict['borrower_group'] = loan_dict.get('borrower_group') or None
-            loan_dict['depositor_group'] = loan_dict.get('depositor_group') or None
+            # Ensure empty strings and NaN become None for optional fields
+            for field in ['borrower_group', 'depositor_group']:
+                value = loan_dict.get(field)
+                if pd.isna(value) or value == '':
+                    loan_dict[field] = None
 
             return LoanResponse(**loan_dict)
         except LoanNotFoundException:

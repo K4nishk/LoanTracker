@@ -34,6 +34,10 @@ class LoanBase(BaseModel):
     @classmethod
     def due_date_after_giving_date(cls, v: date, info) -> date:
         """Ensure due date is after giving date."""
+        # Allow 1970-01-01 as special "no due date" marker
+        if v == date(1970, 1, 1):
+            return v
+
         giving_date = info.data.get('giving_date')
         if giving_date and v < giving_date:
             raise ValueError('Due date must be after giving date')

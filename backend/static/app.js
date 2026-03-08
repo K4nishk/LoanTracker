@@ -2,6 +2,13 @@
 const API_BASE = '/api/v1';
 let allLoans = []; // Cache for commission calculator
 
+// Generate Serial Number in YYYY/xxx format
+function generateSNo(index, givingDate) {
+    const year = new Date(givingDate).getFullYear();
+    const counter = String(index + 1).padStart(3, '0');
+    return `${year}/${counter}`;
+}
+
 // Initialize application
 window.addEventListener('DOMContentLoaded', () => {
     // Set today's date as default for giving_date
@@ -69,7 +76,7 @@ async function apiCall(endpoint, options = {}) {
     }
 }
 
-// Create Loan - FIXED: Handle optional due_date and currency
+// Create Loan - FIXED: Handle optional due_date, currency hardcoded to INR
 async function createLoan(event) {
     event.preventDefault();
 
@@ -78,7 +85,7 @@ async function createLoan(event) {
     const formData = {
         borrower_name: document.getElementById('borrower_name').value,
         amount: parseFloat(document.getElementById('amount').value),
-        currency: document.getElementById('currency').value,
+        currency: 'INR', // Always INR per business requirements
         depositor_name: document.getElementById('depositor_name').value,
         giving_date: document.getElementById('giving_date').value,
         due_date: dueDateValue || '1970-01-01', // Default to 1970-01-01 if empty
@@ -128,13 +135,15 @@ function displayLoans(loans) {
     }
 
     let html = '<div class="table-container"><table><thead><tr>';
-    html += '<th>Borrower</th><th>Amount</th><th>Currency</th><th>Depositor</th>';
+    html += '<th>SNo</th><th>Borrower</th><th>Amount</th><th>Currency</th><th>Depositor</th>';
     html += '<th>Giving Date</th><th>Due Date</th><th>Status</th><th>Actions</th>';
     html += '</tr></thead><tbody>';
 
-    loans.forEach(loan => {
-        const currencySymbol = loan.currency === 'CAD' ? 'CA$' : '₹';
+    loans.forEach((loan, index) => {
+        const sno = generateSNo(index, loan.giving_date);
+        const currencySymbol = '₹'; // Always INR
         html += '<tr>';
+        html += `<td>${sno}</td>`;
         html += `<td>${loan.borrower_name}</td>`;
         html += `<td>${currencySymbol}${parseFloat(loan.amount).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>`;
         html += `<td><span class="currency-badge">${loan.currency || 'INR'}</span></td>`;
@@ -361,19 +370,23 @@ async function calculateCommission(event) {
         }
 
         // Calculate commission for each loan
-        const results = filteredLoans.map(loan => {
+        const results = filteredLoans.map((loan, index) => {
             const amount = parseFloat(loan.amount);
             const monthlyInterest = amount * (interestRate / 12);
             const commissionPerMonth = monthlyInterest * commissionRate;
             const totalCommission = commissionPerMonth * periodCount;
 
             return {
-                loan_id: loan.id.substring(0, 8),
+                sno: generateSNo(index, loan.giving_date),
                 borrower: loan.borrower_name,
+                depositor: loan.depositor_name,
+                givingDate: loan.giving_date,
+                dueDate: loan.due_date,
                 amount: amount,
                 monthlyInterest: monthlyInterest,
                 commissionPerMonth: commissionPerMonth,
-                totalCommission: totalCommission
+                totalCommission: totalCommission,
+                periodCount: periodCount
             };
         });
 
@@ -398,44 +411,57 @@ async function calculateCommission(event) {
     }
 }
 
-// Display Commission Results
+// Display Interest Calculator Results
 function displayCommissionResults(results, summary) {
     const container = document.getElementById('commission-results');
 
     let html = '<div class="card">';
-    html += '<h3>Commission Report</h3>';
-    html += `<p><strong>Borrower/Group:</strong> ${summary.borrowerValue} (${summary.filterType})</p>`;
+    html += '<h3>Interest Calculator Report</h3>';
+
+    // Borrower/Group Header
+    html += `<h4>${summary.borrowerValue}</h4>`;
+
     html += `<p><strong>Interest Rate:</strong> ${summary.interestRate.toFixed(2)}% per annum</p>`;
     html += `<p><strong>Commission Rate:</strong> ${summary.commissionRate.toFixed(2)}%</p>`;
     html += `<p><strong>Period:</strong> ${summary.periodCount} months</p>`;
-    
+
     html += '<div style="margin: 20px 0;">';
-    html += '<button class="button button-primary" onclick="exportCommissionCSV()">📥 Export Commission Report as CSV</button>';
+    html += '<button class="button button-primary" onclick="exportCommissionCSV()">📥 Export Interest Report as CSV</button>';
     html += '</div>';
 
-    html += '<h4>Individual Loans</h4>';
+    // Enhanced table with detailed breakdown
     html += '<div class="table-container"><table>';
-    html += '<thead><tr><th>Loan ID</th><th>Borrower</th><th>Amount</th><th>Monthly Interest</th><th>Commission/Month</th><th>Total Commission</th></tr></thead>';
+    html += '<thead><tr>';
+    html += '<th>SNo</th><th>Amount</th><th>Giving Date</th><th>Depositor</th>';
+    html += '<th>Ext Month/Days</th><th>Due Date</th><th>Interest Amount</th><th>Commission</th>';
+    html += '</tr></thead>';
     html += '<tbody>';
 
     results.forEach(r => {
+        const totalInterest = r.monthlyInterest * r.periodCount;
         html += '<tr>';
-        html += `<td>#${r.loan_id}</td>`;
-        html += `<td>${r.borrower}</td>`;
-        html += `<td>$${r.amount.toFixed(2)}</td>`;
-        html += `<td>$${r.monthlyInterest.toFixed(2)}</td>`;
-        html += `<td>$${r.commissionPerMonth.toFixed(2)}</td>`;
-        html += `<td>$${r.totalCommission.toFixed(2)}</td>`;
+        html += `<td>${r.sno}</td>`;
+        html += `<td>₹${r.amount.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>`;
+        html += `<td>${formatDate(r.givingDate)}</td>`;
+        html += `<td>${r.depositor}</td>`;
+        html += `<td>${r.periodCount} months</td>`;
+        html += `<td>${formatDueDate(r.dueDate)}</td>`;
+        html += `<td>₹${totalInterest.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>`;
+        html += `<td>₹${r.totalCommission.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>`;
         html += '</tr>';
     });
 
     html += '</tbody></table></div>';
 
-    html += '<div class="stats-grid" style="margin-top: 20px;">';
+    // Summary section
+    html += '<div style="margin-top: 30px; padding: 20px; background: var(--card-bg); border-radius: 8px;">';
+    html += '<h4>Summary</h4>';
+    html += '<div class="stats-grid">';
     html += `<div class="stat-card"><div class="stat-label">Total Loans</div><div class="stat-value">${results.length}</div></div>`;
-    html += `<div class="stat-card"><div class="stat-label">Total Amount</div><div class="stat-value">$${summary.totalAmount.toFixed(2)}</div></div>`;
-    html += `<div class="stat-card"><div class="stat-label">Total Interest (${summary.periodCount}m)</div><div class="stat-value">$${summary.totalInterest.toFixed(2)}</div></div>`;
-    html += `<div class="stat-card"><div class="stat-label">Total Commission</div><div class="stat-value" style="color: var(--success-color);">$${summary.totalCommission.toFixed(2)}</div></div>`;
+    html += `<div class="stat-card"><div class="stat-label">Total Amount</div><div class="stat-value">₹${summary.totalAmount.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div></div>`;
+    html += `<div class="stat-card"><div class="stat-label">Total Interest</div><div class="stat-value">₹${summary.totalInterest.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div></div>`;
+    html += `<div class="stat-card"><div class="stat-label">Total Commission</div><div class="stat-value" style="color: var(--success-color);">₹${summary.totalCommission.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div></div>`;
+    html += '</div>';
     html += '</div>';
 
     html += '</div>';
@@ -448,33 +474,32 @@ function displayCommissionResults(results, summary) {
 // Export Commission Report as CSV
 function exportCommissionCSV() {
     if (!window.lastCommissionResults) {
-        showError('No commission results to export');
+        showError('No interest results to export');
         return;
     }
 
     const { results, summary } = window.lastCommissionResults;
 
-    let csv = 'LoanTracker Commission Report\n\n';
-    csv += `Borrower/Group,${summary.borrowerValue}\n`;
-    csv += `Filter Type,${summary.filterType}\n`;
-    csv += `Interest Rate,${summary.interestRate.toFixed(2)}% per annum\n`;
-    csv += `Commission Rate,${summary.commissionRate.toFixed(2)}%\n`;
-    csv += `Period,${summary.periodCount} months\n\n`;
+    let csv = 'LoanTracker Interest Calculator Report\n\n';
+    csv += `Borrower/Group: ${summary.borrowerValue}\n`;
+    csv += `Interest Rate: ${summary.interestRate.toFixed(2)}% per annum\n`;
+    csv += `Commission Rate: ${summary.commissionRate.toFixed(2)}%\n`;
+    csv += `Period: ${summary.periodCount} months\n\n`;
 
-    csv += 'Individual Loans\n';
-    csv += 'Loan ID,Borrower,Amount,Monthly Interest,Commission/Month,Total Commission\n';
+    csv += 'SNo,Amount,Giving Date,Depositor,Ext Month/Days,Due Date,Interest Amount,Commission\n';
     results.forEach(r => {
-        csv += `#${r.loan_id},"${r.borrower}",$${r.amount.toFixed(2)},$${r.monthlyInterest.toFixed(2)},$${r.commissionPerMonth.toFixed(2)},$${r.totalCommission.toFixed(2)}\n`;
+        const totalInterest = r.monthlyInterest * r.periodCount;
+        csv += `${r.sno},₹${r.amount.toFixed(2)},${r.givingDate},"${r.depositor}",${r.periodCount} months,${r.dueDate},₹${totalInterest.toFixed(2)},₹${r.totalCommission.toFixed(2)}\n`;
     });
 
     csv += '\nSummary\n';
     csv += `Total Loans,${results.length}\n`;
-    csv += `Total Amount,$${summary.totalAmount.toFixed(2)}\n`;
-    csv += `Total Interest (${summary.periodCount} months),$${summary.totalInterest.toFixed(2)}\n`;
-    csv += `Total Commission,$${summary.totalCommission.toFixed(2)}\n`;
+    csv += `Total Amount,₹${summary.totalAmount.toFixed(2)}\n`;
+    csv += `Total Interest,₹${summary.totalInterest.toFixed(2)}\n`;
+    csv += `Total Commission,₹${summary.totalCommission.toFixed(2)}\n`;
 
-    downloadCSV(csv, `commission_report_${summary.borrowerValue}_${new Date().toISOString().split('T')[0]}.csv`);
-    showSuccess('Commission report exported successfully!');
+    downloadCSV(csv, `interest_report_${summary.borrowerValue}_${new Date().toISOString().split('T')[0]}.csv`);
+    showSuccess('Interest report exported successfully!');
 }
 
 // CSV Import functions

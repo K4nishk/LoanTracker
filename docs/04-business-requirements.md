@@ -16,15 +16,51 @@
 | Field | Type | Required | Default | Validation | Business Rule |
 |-------|------|----------|---------|------------|---------------|
 | `borrower_name` | String | Yes | - | 2-100 chars | Name of person/entity borrowing money |
-| `amount` | Decimal | Yes | - | > 0, max 999,999,999.99 | Principal loan amount in USD |
+| `amount` | Decimal | Yes | - | > 0, max 999,999,999.99 | Principal loan amount in INR (₹) |
+| `currency` | String | Auto | "INR" | Fixed: INR only | **All amounts in INR only - no currency selection** |
 | `depositor_name` | String | Yes | - | 2-100 chars | Name of lender/depositor |
 | `giving_date` | Date | Yes | - | Cannot be future | Date loan was disbursed |
-| `due_date` | Date | **No** | **1970-01-01** | Must be >= giving_date | Repayment due date; defaults to 1970-01-01 if not provided |
+| `due_date` | Date | **No** | **1970-01-01** | Must be >= giving_date or 1970-01-01 | Repayment due date; defaults to 1970-01-01 if not provided |
 | `borrower_group` | String | No | null | 0-50 chars | Category/group for borrower (e.g., "Family", "Business") |
 | `depositor_group` | String | No | null | 0-50 chars | Category/group for depositor (e.g., "Bank", "Personal") |
 | `status` | Enum | Auto | "active" | active/paid_off/overdue | Auto-calculated based on due_date |
 
-### 1.2 Loan Status Auto-Calculation
+### 1.2 Currency Policy
+
+**Policy**: All loan amounts must be in **INR (Indian Rupees) only**.
+
+**Business Rules**:
+- No currency selection in Data Entry form
+- All amounts automatically stored as INR
+- All displays show ₹ symbol
+- No support for CAD, USD, or other currencies
+
+**Rationale**: Business operates exclusively in Indian market with INR transactions.
+
+---
+
+### 1.3 Serial Number (SNo) Format
+
+**Format**: `YYYY/xxx` where:
+- `YYYY` = Year from the loan's giving_date
+- `xxx` = Zero-padded sequential number (001, 002, 003, ...)
+
+**Examples**:
+- `2026/001` - First loan in 2026
+- `2026/002` - Second loan in 2026
+- `2025/150` - 150th loan in 2025
+
+**Display Rules**:
+- Replace Loan ID in all reports and tables
+- Used in View Loans table
+- Used in Interest Calculator report
+- Included in CSV exports
+
+**Business Rule**: SNo is display-only, internal Loan ID (UUID) still used for database operations.
+
+---
+
+### 1.4 Loan Status Auto-Calculation
 
 ```python
 # Business Logic for Status
@@ -187,13 +223,14 @@ AND deleted_at IS NULL
 
 ---
 
-## 3. Commission Calculation Feature
+## 3. Interest Calculator Feature
 
 ### 3.1 Business Context
 
-**Feature ID**: FEAT-COMM-001
+**Feature ID**: FEAT-INT-001
 **Priority**: High (MVP1)
-**User Story**: As a broker/intermediary, I want to calculate commissions based on loan interest to track earnings.
+**Name**: Interest Calculator (formerly "Commission Calculator")
+**User Story**: As a broker/intermediary, I want to calculate interest and commissions based on loan amounts to track earnings.
 
 **Business Model**:
 - Commissions earned on interest generated from loans
@@ -218,21 +255,21 @@ Commission = Monthly Interest × Commission Rate
 
 **Example Calculation**:
 ```
-Loan Amount: $10,000
+Loan Amount: ₹10,000
 Interest Rate: 12% per annum (0.12)
 Commission Rate: 10% (0.10)
 Period: 1 month
 
 Step 1: Calculate Monthly Interest
-Monthly Interest = $10,000 × (0.12 / 12)
-                 = $10,000 × 0.01
-                 = $100
+Monthly Interest = ₹10,000 × (0.12 / 12)
+                 = ₹10,000 × 0.01
+                 = ₹100
 
 Step 2: Calculate Commission
-Commission = $100 × 0.10
-           = $10
+Commission = ₹100 × 0.10
+           = ₹10
 
-Result: $10 commission per month for this loan
+Result: ₹10 commission per month for this loan
 ```
 
 ---
@@ -290,48 +327,54 @@ total_commission = sum(
 
 ---
 
-### 3.5 Commission Report Requirements
+### 3.5 Interest Calculator Report Requirements
 
-**Requirement ID**: REQ-COMM-001
+**Requirement ID**: REQ-INT-001
 **Priority**: High
 
-**Report Contents**:
-1. **Individual Loan Breakdown**:
-   - Loan ID
-   - Borrower Name
-   - Loan Amount
-   - Monthly Interest
-   - Commission per Period
-   - Total Commission for Period Count
+**Report Format**: Enhanced detailed breakdown per borrower
 
-2. **Summary Totals**:
-   - Total number of loans
-   - Total loan amount
-   - Total interest generated
-   - **Total commission earned**
+**Report Contents**:
+1. **Borrower Name Header**: Display borrower/group name prominently
+2. **Individual Loan Breakdown Table**:
+   - **SNo**: Serial number in YYYY/xxx format (not Loan ID)
+   - **Amount**: Principal amount in INR (₹)
+   - **Giving Date**: Date loan was disbursed
+   - **Depositor**: Name of lender
+   - **Ext Month/Days**: Extension period (e.g., "12 months", "6 months")
+   - **Due Date**: Repayment due date (or "No due date" for 1970-01-01)
+   - **Interest Amount**: Total interest for the period
+   - **Commission**: Total commission for the period
+
+3. **Summary Totals**:
+   - Total Loans count
+   - Total Amount (sum of all loan amounts)
+   - Total Interest (sum of all interest)
+   - **Total Commission** (sum of all commission)
 
 **Sample Report Output**:
 ```
-Commission Report
-Borrower: John Doe
-Interest Rate: 12% per annum
-Commission Rate: 10%
-Period: Monthly × 12 months
+Interest Calculator Report
 
-Individual Loans:
-┌─────────┬────────┬──────────────┬───────────┬────────────┐
-│ Loan ID │ Amount │ Monthly Int. │ Commission│ Total Comm.│
-├─────────┼────────┼──────────────┼───────────┼────────────┤
-│ #001    │ $10,000│ $100.00      │ $10.00    │ $120.00    │
-│ #002    │ $5,000 │ $50.00       │ $5.00     │ $60.00     │
-└─────────┴────────┴──────────────┴───────────┴────────────┘
+John Doe
+
+SNo      | Amount     | Giving Date | Depositor    | Ext Period | Due Date   | Interest   | Commission
+─────────┼────────────┼─────────────┼──────────────┼────────────┼────────────┼────────────┼───────────
+2026/001 | ₹100,000   | 2025-01-15  | Bank         | 12 months  | 2026-01-15 | ₹12,000    | ₹1,200
+2026/002 | ₹50,000    | 2025-02-01  | Lender       | 6 months   | 2025-08-01 | ₹3,000     | ₹300
 
 Summary:
   Total Loans: 2
-  Total Amount: $15,000
-  Total Interest (12 months): $1,800
-  Total Commission: $180.00
+  Total Amount: ₹150,000
+  Total Interest: ₹15,000
+  Total Commission: ₹1,500
 ```
+
+**Display Rules**:
+- All amounts in Indian number format with ₹ symbol
+- Borrower name as H4 header above table
+- Extension period shows user-input months from calculator form
+- Due date formatted as YYYY-MM-DD or "No due date"
 
 ---
 
@@ -483,18 +526,18 @@ if loan.status == 'paid_off' and new_amount != loan.amount:
 
 ## 6. Calculation Examples
 
-### Example 1: Simple Commission
+### Example 1: Simple Interest Calculation
 
-**Scenario**: Single loan, 1-month commission
+**Scenario**: Single loan, 1-month interest
 
 ```
-Loan: $10,000
+Loan: ₹10,000
 Interest Rate: 12% per annum
 Commission Rate: 10%
 Period: 1 month
 
-Monthly Interest = $10,000 × (12% / 12) = $100
-Commission = $100 × 10% = $10
+Monthly Interest = ₹10,000 × (12% / 12) = ₹100
+Commission = ₹100 × 10% = ₹10
 ```
 
 ### Example 2: Multi-Loan Borrower
@@ -502,18 +545,18 @@ Commission = $100 × 10% = $10
 **Scenario**: Borrower with 3 loans
 
 ```
-Loan 1: $10,000 @ 12%
-Loan 2: $5,000 @ 15%
-Loan 3: $8,000 @ 10%
+Loan 1: ₹10,000 @ 12%
+Loan 2: ₹5,000 @ 15%
+Loan 3: ₹8,000 @ 10%
 
 Commission Rate: 10%
 Period: 12 months
 
-Loan 1: ($10,000 × 12%) × 10% × 12 = $144
-Loan 2: ($5,000 × 15%) × 10% × 12 = $90
-Loan 3: ($8,000 × 10%) × 10% × 12 = $96
+Loan 1: (₹10,000 × 12%) × 10% × 12 = ₹144
+Loan 2: (₹5,000 × 15%) × 10% × 12 = ₹90
+Loan 3: (₹8,000 × 10%) × 10% × 12 = ₹96
 
-Total Annual Commission = $330
+Total Annual Commission = ₹330
 ```
 
 ### Example 3: Borrower Group
@@ -552,6 +595,7 @@ Same calculation as multi-loan but aggregated across all borrowers in group.
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 1.0.0 | 2026-03-07 | System | Initial creation |
+| 1.1.0 | 2026-03-08 | System | Post-demo updates: Currency INR-only policy, SNo format, Interest Calculator rename, Enhanced report format |
 
 ---
 

@@ -22,7 +22,7 @@
                 <button class="tab active" onclick="showTab('data-entry')">📝 Data Entry</button>
                 <button class="tab" onclick="showTab('view-loans')">📊 View Loans</button>
                 <button class="tab" onclick="showTab('reports')">📈 Reports</button>
-                <button class="tab" onclick="showTab('commission')">💰 Commission</button>
+                <button class="tab" onclick="showTab('commission')">💰 Interest Calculator</button>
                 <button class="tab" onclick="showTab('import')">📥 Import CSV</button>
                 <button class="tab" onclick="showTab('config')">⚙️ Config</button>
             </div>
@@ -44,33 +44,26 @@
                         </div>
                         <div class="form-row">
                             <div class="form-group">
-                                <label for="currency">Currency *</label>
-                                <select id="currency" required>
-                                    <option value="INR" selected>INR (₹)</option>
-                                    <option value="CAD">CAD ($)</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
                                 <label for="depositor_name">Depositor Name *</label>
                                 <input type="text" id="depositor_name" required>
                             </div>
-                        </div>
-                        <div class="form-row">
                             <div class="form-group">
                                 <label for="giving_date">Giving Date *</label>
                                 <input type="date" id="giving_date" required>
                             </div>
+                        </div>
+                        <div class="form-row">
                             <div class="form-group">
                                 <label for="due_date">Due Date (Optional - defaults to 1970-01-01)</label>
                                 <input type="date" id="due_date">
                                 <small>Leave empty for loans without specific due date</small>
                             </div>
-                        </div>
-                        <div class="form-row">
                             <div class="form-group">
                                 <label for="borrower_group">Borrower Group</label>
                                 <input type="text" id="borrower_group" placeholder="e.g., Family, Business">
                             </div>
+                        </div>
+                        <div class="form-row">
                             <div class="form-group">
                                 <label for="depositor_group">Depositor Group</label>
                                 <input type="text" id="depositor_group" placeholder="e.g., Bank, Personal">
@@ -103,10 +96,10 @@
                 </div>
             </div>
 
-            <!-- Commission Calculator Tab -->
+            <!-- Interest Calculator Tab -->
             <div id="commission" class="tab-content">
                 <div class="card">
-                    <h2>Commission Calculator</h2>
+                    <h2>Interest Calculator</h2>
                     <form id="commission-form" onsubmit="calculateCommission(event)">
                         <div class="form-row">
                             <div class="form-group">
@@ -139,10 +132,10 @@
                             <div class="form-group">
                                 <label for="period_count">Number of Months *</label>
                                 <input type="number" id="period_count" min="1" max="360" value="12" required>
-                                <small>Calculate commission for how many months</small>
+                                <small>Calculate interest for how many months</small>
                             </div>
                         </div>
-                        <button type="submit" class="button button-primary">Calculate Commission</button>
+                        <button type="submit" class="button button-primary">Calculate Interest</button>
                     </form>
                     <div id="commission-results" style="margin-top: 30px;"></div>
                 </div>
