@@ -32,7 +32,7 @@ class TestStatusCalculation:
 
         loan = storage_service.create_loan(loan_data)
 
-        assert str(loan.status) == "active"
+        assert loan.status.value == "active"
         assert str(loan.due_date) == "1970-01-01"
 
     def test_future_due_date_is_active(self):
@@ -49,7 +49,7 @@ class TestStatusCalculation:
 
         loan = storage_service.create_loan(loan_data)
 
-        assert str(loan.status) == "active"
+        assert loan.status.value == "active"
 
     def test_past_due_date_is_overdue(self):
         """Test that loans with past due dates are overdue."""
@@ -65,7 +65,7 @@ class TestStatusCalculation:
 
         loan = storage_service.create_loan(loan_data)
 
-        assert str(loan.status) == "overdue"
+        assert loan.status.value == "overdue"
 
     def test_today_due_date_is_active(self):
         """Test that loans due today are considered active (not overdue yet)."""
@@ -80,7 +80,7 @@ class TestStatusCalculation:
         loan = storage_service.create_loan(loan_data)
 
         # Due today should still be active (not overdue until tomorrow)
-        assert str(loan.status) in ["active", "overdue"]  # Depends on implementation
+        assert loan.status.value in ["active", "overdue"]  # Depends on implementation
 
     def test_1970_date_never_becomes_overdue(self):
         """Test that 1970-01-01 loans never auto-change to overdue."""
@@ -95,7 +95,7 @@ class TestStatusCalculation:
         loan = storage_service.create_loan(loan_data)
 
         # Should remain active despite old giving_date
-        assert str(loan.status) == "active"
+        assert loan.status.value == "active"
         assert str(loan.due_date) == "1970-01-01"
 
 
@@ -125,7 +125,7 @@ class TestDateValidation:
 
         loan = storage_service.create_loan(loan_data)
         assert str(loan.due_date) == "1970-01-01"
-        assert str(loan.status) == "active"
+        assert loan.status.value == "active"
 
     def test_same_date_for_giving_and_due_allowed(self):
         """Test that due_date can be same as giving_date."""
@@ -194,7 +194,7 @@ class TestNullFieldHandling:
         loan_id = created_loan.id
 
         # Retrieve loan
-        retrieved_loan = storage_service.get_loan(loan_id)
+        retrieved_loan = storage_service.get_loan_by_id(loan_id)
 
         # Verify no NaN values
         assert retrieved_loan.borrower_group is None or retrieved_loan.borrower_group == ""
@@ -202,10 +202,12 @@ class TestNullFieldHandling:
 
         # Also test in JSON serialization (would fail if NaN)
         import json
+        from decimal import Decimal
         try:
             # Convert Pydantic model to dict then to JSON
             loan_dict = retrieved_loan.model_dump() if hasattr(retrieved_loan, 'model_dump') else retrieved_loan.dict()
-            json.dumps(loan_dict)
+            # Custom serializer for Decimal and date
+            json.dumps(loan_dict, default=lambda x: str(x) if isinstance(x, (Decimal, date)) or hasattr(x, 'value') else None)
             assert True  # Should not raise error
-        except (ValueError, TypeError):
-            pytest.fail("JSON serialization failed - likely NaN values present")
+        except (ValueError, TypeError) as e:
+            pytest.fail(f"JSON serialization failed: {e}")

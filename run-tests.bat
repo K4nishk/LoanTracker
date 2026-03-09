@@ -8,7 +8,18 @@ echo  LoanTracker Test Suite Runner
 echo ===============================================
 echo.
 
-cd /d "%~dp0\backend"
+REM Check if virtual environment exists
+if not exist "%~dp0venv\" (
+    echo Virtual environment not found at %~dp0venv
+    echo Please create it first with: python -m venv venv
+    exit /b 1
+)
+
+REM Activate virtual environment
+echo Activating virtual environment...
+call "%~dp0venv\Scripts\activate.bat"
+
+cd /d "%~dp0backend"
 
 REM Check if pytest is installed
 python -m pytest --version >nul 2>&1
@@ -43,4 +54,8 @@ echo.
 echo Coverage report generated: backend\htmlcov\index.html
 echo Open in browser to view detailed coverage
 echo.
+
+REM Deactivate virtual environment
+deactivate
+
 pause

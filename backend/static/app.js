@@ -375,6 +375,7 @@ async function calculateCommission(event) {
             const monthlyInterest = amount * (interestRate / 12);
             const commissionPerMonth = monthlyInterest * commissionRate;
             const totalCommission = commissionPerMonth * periodCount;
+            const loanPeriodDays = calculateLoanPeriodDays(loan.giving_date, loan.due_date);
 
             return {
                 sno: generateSNo(index, loan.giving_date),
@@ -386,7 +387,8 @@ async function calculateCommission(event) {
                 monthlyInterest: monthlyInterest,
                 commissionPerMonth: commissionPerMonth,
                 totalCommission: totalCommission,
-                periodCount: periodCount
+                periodCount: periodCount,
+                loanPeriodDays: loanPeriodDays
             };
         });
 
@@ -433,18 +435,19 @@ function displayCommissionResults(results, summary) {
     html += '<div class="table-container"><table>';
     html += '<thead><tr>';
     html += '<th>SNo</th><th>Amount</th><th>Giving Date</th><th>Depositor</th>';
-    html += '<th>Ext Month/Days</th><th>Due Date</th><th>Interest Amount</th><th>Commission</th>';
+    html += '<th>LoanPeriod(Days)</th><th>Due Date</th><th>Interest Amount</th><th>Commission</th>';
     html += '</tr></thead>';
     html += '<tbody>';
 
     results.forEach(r => {
         const totalInterest = r.monthlyInterest * r.periodCount;
+        const loanPeriodDisplay = r.loanPeriodDays === 'N/A' ? 'N/A' : `${r.loanPeriodDays} days`;
         html += '<tr>';
         html += `<td>${r.sno}</td>`;
         html += `<td>₹${r.amount.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>`;
         html += `<td>${formatDate(r.givingDate)}</td>`;
         html += `<td>${r.depositor}</td>`;
-        html += `<td>${r.periodCount} months</td>`;
+        html += `<td>${loanPeriodDisplay}</td>`;
         html += `<td>${formatDueDate(r.dueDate)}</td>`;
         html += `<td>₹${totalInterest.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>`;
         html += `<td>₹${r.totalCommission.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>`;
@@ -486,10 +489,11 @@ function exportCommissionCSV() {
     csv += `Commission Rate: ${summary.commissionRate.toFixed(2)}%\n`;
     csv += `Period: ${summary.periodCount} months\n\n`;
 
-    csv += 'SNo,Amount,Giving Date,Depositor,Ext Month/Days,Due Date,Interest Amount,Commission\n';
+    csv += 'SNo,Amount,Giving Date,Depositor,LoanPeriod(Days),Due Date,Interest Amount,Commission\n';
     results.forEach(r => {
         const totalInterest = r.monthlyInterest * r.periodCount;
-        csv += `${r.sno},₹${r.amount.toFixed(2)},${r.givingDate},"${r.depositor}",${r.periodCount} months,${r.dueDate},₹${totalInterest.toFixed(2)},₹${r.totalCommission.toFixed(2)}\n`;
+        const loanPeriodDisplay = r.loanPeriodDays === 'N/A' ? 'N/A' : `${r.loanPeriodDays} days`;
+        csv += `${r.sno},₹${r.amount.toFixed(2)},${r.givingDate},"${r.depositor}",${loanPeriodDisplay},${r.dueDate},₹${totalInterest.toFixed(2)},₹${r.totalCommission.toFixed(2)}\n`;
     });
 
     csv += '\nSummary\n';
@@ -688,6 +692,22 @@ function displayConfig(config) {
 }
 
 // Utility Functions
+function calculateLoanPeriodDays(givingDate, dueDate) {
+    // Handle special case: 1970-01-01 means no due date
+    if (dueDate === '1970-01-01') {
+        return 'N/A';
+    }
+
+    const startDate = new Date(givingDate);
+    const endDate = new Date(dueDate);
+
+    // Calculate difference in milliseconds, then convert to days
+    const diffTime = endDate - startDate;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    return diffDays;
+}
+
 function formatDate(dateString) {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });

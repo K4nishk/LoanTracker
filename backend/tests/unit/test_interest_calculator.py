@@ -220,29 +220,79 @@ class TestSNoGeneration:
                 assert counter == expected_counter
 
 
-class TestExtensionPeriodDisplay:
-    """Test extension period display formatting."""
+class TestLoanPeriodCalculation:
+    """Test loan period calculation in days between giving_date and due_date."""
 
-    def test_single_month_display(self):
-        """Test display for 1 month extension."""
-        months = 1
-        display = f"{months} month" if months == 1 else f"{months} months"
+    def test_loan_period_30_days(self):
+        """Test loan period calculation for 30-day loan."""
+        from datetime import date
 
-        assert display == "1 month"
+        giving_date = date(2026, 1, 1)
+        due_date = date(2026, 1, 31)
 
-    def test_multiple_months_display(self):
-        """Test display for multiple months."""
-        months = 12
-        display = f"{months} month" if months == 1 else f"{months} months"
+        # Calculate days between dates
+        loan_period_days = (due_date - giving_date).days
 
-        assert display == "12 months"
+        assert loan_period_days == 30
 
-    def test_six_months_display(self):
-        """Test display for 6 months."""
-        months = 6
-        display = f"{months} month" if months == 1 else f"{months} months"
+    def test_loan_period_one_year(self):
+        """Test loan period calculation for 1-year loan."""
+        from datetime import date
 
-        assert display == "6 months"
+        giving_date = date(2026, 1, 1)
+        due_date = date(2027, 1, 1)
+
+        loan_period_days = (due_date - giving_date).days
+
+        assert loan_period_days == 365
+
+    def test_loan_period_six_months(self):
+        """Test loan period calculation for approximately 6 months."""
+        from datetime import date
+
+        giving_date = date(2026, 1, 1)
+        due_date = date(2026, 7, 1)
+
+        loan_period_days = (due_date - giving_date).days
+
+        # 6 months is approximately 181 days (Jan-Jun)
+        assert loan_period_days == 181
+
+    def test_loan_period_no_due_date(self):
+        """Test that 1970-01-01 due date represents no due date (N/A)."""
+        from datetime import date
+
+        due_date = date(1970, 1, 1)
+
+        # In business logic, 1970-01-01 should be treated as "no due date"
+        # The UI should display "N/A" for loan period
+        is_no_due_date = (due_date == date(1970, 1, 1))
+
+        assert is_no_due_date is True
+
+    def test_loan_period_leap_year(self):
+        """Test loan period calculation across leap year."""
+        from datetime import date
+
+        giving_date = date(2024, 2, 1)  # 2024 is a leap year
+        due_date = date(2024, 3, 1)
+
+        loan_period_days = (due_date - giving_date).days
+
+        # February 2024 has 29 days (leap year)
+        assert loan_period_days == 29
+
+    def test_loan_period_display_format(self):
+        """Test that loan period displays correctly in 'X days' format."""
+        from datetime import date
+
+        giving_date = date(2026, 1, 1)
+        due_date = date(2026, 1, 15)
+
+        loan_period_days = (due_date - giving_date).days
+        display = f"{loan_period_days} days"
+
+        assert display == "14 days"
 
 
 class TestSummaryCalculations:

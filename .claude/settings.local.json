@@ -7,7 +7,11 @@
       "Bash(unzip:*)",
       "Bash(pip3 install:*)",
       "Bash(source venv/bin/activate)",
-      "Bash(python -m pytest:*)"
+      "Bash(python -m pytest:*)",
+      "Bash(source ../venv/bin/activate)",
+      "Bash(python -m py_compile:*)",
+      "Bash(python:*)",
+      "Bash(./run-tests.sh:*)"
     ]
   }
 }

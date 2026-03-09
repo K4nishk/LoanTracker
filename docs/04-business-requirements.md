@@ -341,7 +341,7 @@ total_commission = sum(
    - **Amount**: Principal amount in INR (₹)
    - **Giving Date**: Date loan was disbursed
    - **Depositor**: Name of lender
-   - **Ext Month/Days**: Extension period (e.g., "12 months", "6 months")
+   - **LoanPeriod(Days)**: Number of days between giving_date and due_date (displays "N/A" for loans with no due date, i.e., due_date = 1970-01-01)
    - **Due Date**: Repayment due date (or "No due date" for 1970-01-01)
    - **Interest Amount**: Total interest for the period
    - **Commission**: Total commission for the period
@@ -358,10 +358,10 @@ Interest Calculator Report
 
 John Doe
 
-SNo      | Amount     | Giving Date | Depositor    | Ext Period | Due Date   | Interest   | Commission
-─────────┼────────────┼─────────────┼──────────────┼────────────┼────────────┼────────────┼───────────
-2026/001 | ₹100,000   | 2025-01-15  | Bank         | 12 months  | 2026-01-15 | ₹12,000    | ₹1,200
-2026/002 | ₹50,000    | 2025-02-01  | Lender       | 6 months   | 2025-08-01 | ₹3,000     | ₹300
+SNo      | Amount     | Giving Date | Depositor    | LoanPeriod(Days) | Due Date   | Interest   | Commission
+─────────┼────────────┼─────────────┼──────────────┼──────────────────┼────────────┼────────────┼───────────
+2026/001 | ₹100,000   | 2025-01-15  | Bank         | 365 days         | 2026-01-15 | ₹12,000    | ₹1,200
+2026/002 | ₹50,000    | 2025-02-01  | Lender       | 181 days         | 2025-08-01 | ₹3,000     | ₹300
 
 Summary:
   Total Loans: 2
@@ -373,7 +373,9 @@ Summary:
 **Display Rules**:
 - All amounts in Indian number format with ₹ symbol
 - Borrower name as H4 header above table
-- Extension period shows user-input months from calculator form
+- **LoanPeriod(Days)** calculated as: `(due_date - giving_date)` in days
+  - Displays "N/A" for loans with `due_date = 1970-01-01` (no specific due date)
+  - Formula: `Math.ceil((due_date - giving_date) / (1000 * 60 * 60 * 24))` in JavaScript
 - Due date formatted as YYYY-MM-DD or "No due date"
 
 ---
@@ -596,6 +598,7 @@ Same calculation as multi-loan but aggregated across all borrowers in group.
 |---------|------|--------|---------|
 | 1.0.0 | 2026-03-07 | System | Initial creation |
 | 1.1.0 | 2026-03-08 | System | Post-demo updates: Currency INR-only policy, SNo format, Interest Calculator rename, Enhanced report format |
+| 1.2.0 | 2026-03-08 | System | Updated Interest Calculator report: Changed "Ext Month/Days" to "LoanPeriod(Days)" with calculation logic (days between due_date and giving_date) |
 
 ---
 

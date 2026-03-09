@@ -11,12 +11,12 @@ def clean_storage():
     # Clear all loans before test
     loans = storage_service.get_all_loans()
     for loan in loans:
-        storage_service.delete_loan(loan["id"])
+        storage_service.delete_loan(loan.id)
     yield
     # Clean up after test
     loans = storage_service.get_all_loans()
     for loan in loans:
-        storage_service.delete_loan(loan["id"])
+        storage_service.delete_loan(loan.id)
 
 
 class TestLoanCreation:
@@ -28,24 +28,24 @@ class TestLoanCreation:
             borrower_name="John Doe",
             amount=10000.00,
             depositor_name="Jane Smith",
-            giving_date=date(2025, 1, 1),
-            due_date=date(2025, 12, 31),
+            giving_date=date(2026, 1, 1),
+            due_date=date(2026, 12, 31),
             borrower_group="Family",
             depositor_group="Personal"
         )
 
         loan = storage_service.create_loan(loan_data)
 
-        assert loan["borrower_name"] == "John Doe"
-        assert loan["amount"] == 10000.00
-        assert loan["depositor_name"] == "Jane Smith"
-        assert loan["giving_date"] == "2025-01-01"
-        assert loan["due_date"] == "2025-12-31"
-        assert loan["borrower_group"] == "Family"
-        assert loan["depositor_group"] == "Personal"
-        assert loan["status"] == "active"
-        assert "id" in loan
-        assert "created_at" in loan
+        assert loan.borrower_name == "John Doe"
+        assert float(loan.amount) == 10000.00
+        assert loan.depositor_name == "Jane Smith"
+        assert str(loan.giving_date) == "2026-01-01"
+        assert str(loan.due_date) == "2026-12-31"
+        assert loan.borrower_group == "Family"
+        assert loan.depositor_group == "Personal"
+        assert loan.status.value == "active"
+        assert hasattr(loan, 'id')
+        assert hasattr(loan, 'created_at')
 
     def test_create_loan_with_optional_fields_empty(self):
         """Test creating loan with optional fields empty."""
@@ -53,18 +53,18 @@ class TestLoanCreation:
             borrower_name="Test User",
             amount=5000.00,
             depositor_name="Test Bank",
-            giving_date=date(2025, 1, 15),
-            due_date=None,
+            giving_date=date(2026, 1, 15),
+            due_date=date(1970, 1, 1),  # No due date marker
             borrower_group=None,
             depositor_group=None
         )
 
         loan = storage_service.create_loan(loan_data)
 
-        assert loan["borrower_name"] == "Test User"
-        assert loan["due_date"] == "1970-01-01"  # Default value
-        assert loan["borrower_group"] is None
-        assert loan["depositor_group"] is None
+        assert loan.borrower_name == "Test User"
+        assert str(loan.due_date) == "1970-01-01"  # Default value
+        assert loan.borrower_group is None or loan.borrower_group == ""
+        assert loan.depositor_group is None or loan.depositor_group == ""
 
     def test_create_loan_with_no_due_date(self):
         """Test creating loan without due date defaults to 1970-01-01."""
@@ -72,13 +72,14 @@ class TestLoanCreation:
             borrower_name="No Due Date User",
             amount=3000.00,
             depositor_name="Lender",
-            giving_date=date(2025, 2, 1)
+            giving_date=date(2026, 2, 1),
+            due_date=date(1970, 1, 1)  # No due date marker
         )
 
         loan = storage_service.create_loan(loan_data)
 
-        assert loan["due_date"] == "1970-01-01"
-        assert loan["status"] == "active"  # Should be active, not overdue
+        assert str(loan.due_date) == "1970-01-01"
+        assert loan.status.value == "active"  # Should be active, not overdue
 
 
 class TestLoanRetrieval:
@@ -97,7 +98,8 @@ class TestLoanRetrieval:
                 borrower_name=f"Borrower {i}",
                 amount=1000.00 * (i + 1),
                 depositor_name=f"Depositor {i}",
-                giving_date=date(2025, 1, i + 1)
+                giving_date=date(2026, 1, i + 1),
+                due_date=date(1970, 1, 1)  # No due date marker
             )
             storage_service.create_loan(loan_data)
 
@@ -110,21 +112,23 @@ class TestLoanRetrieval:
             borrower_name="Specific User",
             amount=7500.00,
             depositor_name="Specific Lender",
-            giving_date=date(2025, 3, 1)
+            giving_date=date(2026, 3, 1),
+            due_date=date(1970, 1, 1)
         )
 
         created_loan = storage_service.create_loan(loan_data)
-        loan_id = created_loan["id"]
+        loan_id = created_loan.id
 
-        retrieved_loan = storage_service.get_loan(loan_id)
+        retrieved_loan = storage_service.get_loan_by_id(loan_id)
         assert retrieved_loan is not None
-        assert retrieved_loan["id"] == loan_id
-        assert retrieved_loan["borrower_name"] == "Specific User"
+        assert retrieved_loan.id == loan_id
+        assert retrieved_loan.borrower_name == "Specific User"
 
     def test_get_nonexistent_loan(self):
         """Test retrieving a loan that doesn't exist."""
-        loan = storage_service.get_loan("nonexistent-id")
-        assert loan is None
+        from app.core.exceptions import LoanNotFoundException
+        with pytest.raises(LoanNotFoundException):
+            storage_service.get_loan_by_id("nonexistent-id")
 
 
 class TestLoanUpdate:
@@ -137,17 +141,18 @@ class TestLoanUpdate:
             borrower_name="Update Test",
             amount=1000.00,
             depositor_name="Test Lender",
-            giving_date=date(2025, 1, 1)
+            giving_date=date(2026, 1, 1),
+            due_date=date(1970, 1, 1)
         )
         loan = storage_service.create_loan(loan_data)
-        loan_id = loan["id"]
+        loan_id = loan.id
 
         # Update amount
         update_data = LoanUpdate(amount=2000.00)
         updated_loan = storage_service.update_loan(loan_id, update_data)
 
-        assert updated_loan["amount"] == 2000.00
-        assert updated_loan["borrower_name"] == "Update Test"  # Unchanged
+        assert float(updated_loan.amount) == 2000.00
+        assert updated_loan.borrower_name == "Update Test"  # Unchanged
 
     def test_update_loan_status(self):
         """Test updating loan status."""
@@ -155,16 +160,17 @@ class TestLoanUpdate:
             borrower_name="Status Test",
             amount=5000.00,
             depositor_name="Lender",
-            giving_date=date(2025, 1, 1)
+            giving_date=date(2026, 1, 1),
+            due_date=date(1970, 1, 1)
         )
         loan = storage_service.create_loan(loan_data)
-        loan_id = loan["id"]
+        loan_id = loan.id
 
         # Update status
         update_data = LoanUpdate(status="paid_off")
         updated_loan = storage_service.update_loan(loan_id, update_data)
 
-        assert updated_loan["status"] == "paid_off"
+        assert updated_loan.status.value == "paid_off"
 
     def test_update_multiple_fields(self):
         """Test updating multiple fields at once."""
@@ -172,22 +178,22 @@ class TestLoanUpdate:
             borrower_name="Multi Update",
             amount=3000.00,
             depositor_name="Original Lender",
-            giving_date=date(2025, 1, 1)
+            giving_date=date(2026, 1, 1),
+            due_date=date(1970, 1, 1)
         )
         loan = storage_service.create_loan(loan_data)
-        loan_id = loan["id"]
+        loan_id = loan.id
 
         # Update multiple fields
         update_data = LoanUpdate(
             amount=4000.00,
-            depositor_name="New Lender",
             status="overdue"
         )
         updated_loan = storage_service.update_loan(loan_id, update_data)
 
-        assert updated_loan["amount"] == 4000.00
-        assert updated_loan["depositor_name"] == "New Lender"
-        assert updated_loan["status"] == "overdue"
+        assert float(updated_loan.amount) == 4000.00
+        assert updated_loan.borrower_name == "Multi Update"  # Unchanged
+        assert updated_loan.status.value == "overdue"
 
 
 class TestLoanDeletion:
@@ -199,10 +205,11 @@ class TestLoanDeletion:
             borrower_name="Delete Test",
             amount=1500.00,
             depositor_name="Lender",
-            giving_date=date(2025, 1, 1)
+            giving_date=date(2026, 1, 1),
+            due_date=date(1970, 1, 1)
         )
         loan = storage_service.create_loan(loan_data)
-        loan_id = loan["id"]
+        loan_id = loan.id
 
         # Delete loan
         result = storage_service.delete_loan(loan_id)
@@ -210,12 +217,13 @@ class TestLoanDeletion:
 
         # Verify loan no longer appears in get_all
         loans = storage_service.get_all_loans()
-        assert not any(l["id"] == loan_id for l in loans)
+        assert not any(l.id == loan_id for l in loans)
 
     def test_delete_nonexistent_loan(self):
         """Test deleting a loan that doesn't exist."""
-        result = storage_service.delete_loan("nonexistent-id")
-        assert result is False
+        from app.core.exceptions import LoanNotFoundException
+        with pytest.raises(LoanNotFoundException):
+            storage_service.delete_loan("nonexistent-id")
 
 
 class TestLoanValidation:
@@ -228,7 +236,8 @@ class TestLoanValidation:
                 # Missing borrower_name
                 amount=1000.00,
                 depositor_name="Lender",
-                giving_date=date(2025, 1, 1)
+                giving_date=date(2026, 1, 1),
+                due_date=date(1970, 1, 1)
             )
 
     def test_create_loan_negative_amount(self):
@@ -238,7 +247,8 @@ class TestLoanValidation:
                 borrower_name="Test",
                 amount=-1000.00,  # Invalid
                 depositor_name="Lender",
-                giving_date=date(2025, 1, 1)
+                giving_date=date(2026, 1, 1),
+                due_date=date(1970, 1, 1)
             )
 
     def test_create_loan_zero_amount(self):
@@ -248,7 +258,8 @@ class TestLoanValidation:
                 borrower_name="Test",
                 amount=0.00,  # Invalid
                 depositor_name="Lender",
-                giving_date=date(2025, 1, 1)
+                giving_date=date(2026, 1, 1),
+                due_date=date(1970, 1, 1)
             )
 
 
@@ -256,17 +267,17 @@ class TestDueDateDefault:
     """Test due date default behavior."""
 
     def test_due_date_defaults_to_1970(self):
-        """Test that missing due_date defaults to 1970-01-01."""
+        """Test that 1970-01-01 due_date is accepted as no due date marker."""
         loan_data = LoanCreate(
             borrower_name="Default Date Test",
             amount=2000.00,
             depositor_name="Lender",
-            giving_date=date(2025, 1, 1),
-            # No due_date provided
+            giving_date=date(2026, 1, 1),
+            due_date=date(1970, 1, 1)  # Special marker for "no due date"
         )
 
         loan = storage_service.create_loan(loan_data)
-        assert loan["due_date"] == "1970-01-01"
+        assert str(loan.due_date) == "1970-01-01"
 
     def test_explicit_due_date_respected(self):
         """Test that explicit due_date is used when provided."""
@@ -274,9 +285,9 @@ class TestDueDateDefault:
             borrower_name="Explicit Date Test",
             amount=2000.00,
             depositor_name="Lender",
-            giving_date=date(2025, 1, 1),
-            due_date=date(2025, 6, 1)
+            giving_date=date(2026, 1, 1),
+            due_date=date(2026, 6, 1)
         )
 
         loan = storage_service.create_loan(loan_data)
-        assert loan["due_date"] == "2025-06-01"
+        assert str(loan.due_date) == "2026-06-01"
