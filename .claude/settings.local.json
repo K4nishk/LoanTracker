@@ -11,7 +11,11 @@
       "Bash(source ../venv/bin/activate)",
       "Bash(python -m py_compile:*)",
       "Bash(python:*)",
-      "Bash(./run-tests.sh:*)"
+      "Bash(./run-tests.sh:*)",
+      "Bash(pytest:*)",
+      "Bash(/opt/homebrew/bin/pytest tests/ -v --tb=short)",
+      "Bash(venv/bin/pip install:*)",
+      "Bash(venv/bin/pytest tests/ -v --tb=short)"
     ]
   }
 }

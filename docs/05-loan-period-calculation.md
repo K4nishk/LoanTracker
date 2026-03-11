@@ -12,13 +12,13 @@
 ## 1. Feature Summary
 
 ### 1.1 Purpose
-The **LoanPeriod(Days)** field displays the duration of a loan in days, calculated as the number of days between the `giving_date` (when the loan was disbursed) and the `due_date` (when repayment is expected).
+The **LoanPeriod** field displays the duration of a loan in days/months, calculated as the number of days between the `giving_date` (when the loan was disbursed) and the `due_date` (when repayment is expected).
 
-This feature replaces the previous "Ext Month/Days" column which displayed an arbitrary extension period in months.
+This feature replaces the previous "Ext Month/Days" column which displayed an arbitrary extension period in months. Have a drop down option for allowing month/days as the unit for LoanPeriod.
 
 ### 1.2 Business Value
 - **Accurate Duration Tracking**: Shows exact loan duration for reporting and analysis
-- **Standardized Measurement**: All loans measured in consistent unit (days)
+- **Standardized Measurement**: All loans measured in consistent unit (days/month) depending on the unit selected by user.
 - **Better Decision Making**: Enables comparison of short-term vs long-term loans
 - **Audit Trail**: Clear calculation logic based on actual loan dates
 

@@ -181,6 +181,36 @@ async function updateLoanStatus(loanId, newStatus) {
     }
 }
 
+// Update Loan Due Dates (batch update)
+async function updateLoanDueDates(loansToUpdate) {
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const loan of loansToUpdate) {
+        try {
+            await apiCall(`/loans/${loan.id}`, {
+                method: 'PATCH',
+                body: JSON.stringify({ due_date: loan.due_date })
+            });
+            successCount++;
+        } catch (error) {
+            console.error(`Failed to update loan ${loan.id}:`, error);
+            errorCount++;
+        }
+    }
+
+    if (successCount > 0) {
+        showSuccess(`Updated ${successCount} loan(s) with calculated due dates`);
+    }
+    if (errorCount > 0) {
+        showError(`Failed to update ${errorCount} loan(s)`);
+    }
+
+    // Reload loans to reflect changes
+    loadLoans();
+    loadBorrowerOptions();
+}
+
 // Delete Loan
 async function deleteLoan(loanId) {
     if (!confirm('Are you sure you want to delete this loan?')) return;
@@ -346,6 +376,7 @@ async function calculateCommission(event) {
     const interestRate = parseFloat(document.getElementById('interest_rate').value) / 100; // Convert to decimal
     const commissionRate = parseFloat(document.getElementById('commission_rate').value) / 100;
     const periodCount = parseInt(document.getElementById('period_count').value);
+    const periodUnit = document.getElementById('period_unit').value; // 'months' or 'days'
 
     // Validation
     if (commissionRate >= interestRate) {
@@ -369,32 +400,90 @@ async function calculateCommission(event) {
             return;
         }
 
+        // Track loans that need due_date updates
+        const loansToUpdate = [];
+
         // Calculate commission for each loan
         const results = filteredLoans.map((loan, index) => {
             const amount = parseFloat(loan.amount);
-            const monthlyInterest = amount * (interestRate / 12);
-            const commissionPerMonth = monthlyInterest * commissionRate;
-            const totalCommission = commissionPerMonth * periodCount;
-            const loanPeriodDays = calculateLoanPeriodDays(loan.giving_date, loan.due_date);
+
+            // Calculate interest based on unit (days or months)
+            let periodInterest, totalInterest, totalCommission;
+            if (periodUnit === 'days') {
+                // Daily interest calculation
+                const dailyInterest = amount * (interestRate / 365);
+                periodInterest = dailyInterest;
+                totalInterest = dailyInterest * periodCount;
+                totalCommission = totalInterest * commissionRate;
+            } else {
+                // Monthly interest calculation (default)
+                const monthlyInterest = amount * (interestRate / 12);
+                periodInterest = monthlyInterest;
+                totalInterest = monthlyInterest * periodCount;
+                totalCommission = totalInterest * commissionRate;
+            }
+
+            // Calculate or use existing loan period
+            let loanPeriodValue, calculatedDueDate, needsUpdate = false;
+            const givingDate = new Date(loan.giving_date);
+
+            if (loan.due_date === '1970-01-01') {
+                // No due date exists - calculate from period
+                loanPeriodValue = periodCount;
+                calculatedDueDate = new Date(givingDate);
+
+                if (periodUnit === 'days') {
+                    calculatedDueDate.setDate(calculatedDueDate.getDate() + periodCount);
+                } else {
+                    calculatedDueDate.setMonth(calculatedDueDate.getMonth() + periodCount);
+                }
+                calculatedDueDate = calculatedDueDate.toISOString().split('T')[0];
+                needsUpdate = true;
+
+                // Queue this loan for update
+                loansToUpdate.push({
+                    id: loan.id,
+                    due_date: calculatedDueDate
+                });
+            } else {
+                // Due date exists - calculate actual period
+                const loanPeriodDays = calculateLoanPeriodDays(loan.giving_date, loan.due_date);
+                if (periodUnit === 'days') {
+                    loanPeriodValue = loanPeriodDays;
+                } else {
+                    // Convert days to approximate months (30 days per month)
+                    loanPeriodValue = Math.round(loanPeriodDays / 30);
+                }
+                calculatedDueDate = loan.due_date;
+            }
 
             return {
                 sno: generateSNo(index, loan.giving_date),
                 borrower: loan.borrower_name,
                 depositor: loan.depositor_name,
                 givingDate: loan.giving_date,
-                dueDate: loan.due_date,
+                dueDate: calculatedDueDate,
+                originalDueDate: loan.due_date,
                 amount: amount,
-                monthlyInterest: monthlyInterest,
-                commissionPerMonth: commissionPerMonth,
+                periodInterest: periodInterest,
+                totalInterest: totalInterest,
                 totalCommission: totalCommission,
                 periodCount: periodCount,
-                loanPeriodDays: loanPeriodDays
+                periodUnit: periodUnit,
+                loanPeriodValue: loanPeriodValue,
+                needsUpdate: needsUpdate,
+                loanId: loan.id
             };
         });
 
+        // Update loan records if needed
+        if (loansToUpdate.length > 0) {
+            await updateLoanDueDates(loansToUpdate);
+        }
+
         // Calculate totals
         const totalAmount = results.reduce((sum, r) => sum + r.amount, 0);
-        const totalInterest = results.reduce((sum, r) => sum + (r.monthlyInterest * periodCount), 0);
+        const totalInterest = results.reduce((sum, r) => sum + r.totalInterest, 0);
         const totalCommission = results.reduce((sum, r) => sum + r.totalCommission, 0);
 
         displayCommissionResults(results, {
@@ -403,6 +492,7 @@ async function calculateCommission(event) {
             interestRate: interestRate * 100,
             commissionRate: commissionRate * 100,
             periodCount,
+            periodUnit,
             totalAmount,
             totalInterest,
             totalCommission
@@ -425,7 +515,7 @@ function displayCommissionResults(results, summary) {
 
     html += `<p><strong>Interest Rate:</strong> ${summary.interestRate.toFixed(2)}% per annum</p>`;
     html += `<p><strong>Commission Rate:</strong> ${summary.commissionRate.toFixed(2)}%</p>`;
-    html += `<p><strong>Period:</strong> ${summary.periodCount} months</p>`;
+    html += `<p><strong>Period:</strong> ${summary.periodCount} ${summary.periodUnit}</p>`;
 
     html += '<div style="margin: 20px 0;">';
     html += '<button class="button button-primary" onclick="exportCommissionCSV()">📥 Export Interest Report as CSV</button>';
@@ -435,21 +525,23 @@ function displayCommissionResults(results, summary) {
     html += '<div class="table-container"><table>';
     html += '<thead><tr>';
     html += '<th>SNo</th><th>Amount</th><th>Giving Date</th><th>Depositor</th>';
-    html += '<th>LoanPeriod(Days)</th><th>Due Date</th><th>Interest Amount</th><th>Commission</th>';
+    html += `<th>LoanPeriod(${summary.periodUnit === 'days' ? 'Days' : 'Months'})</th><th>Due Date</th><th>Interest Amount</th><th>Commission</th>`;
     html += '</tr></thead>';
     html += '<tbody>';
 
     results.forEach(r => {
-        const totalInterest = r.monthlyInterest * r.periodCount;
-        const loanPeriodDisplay = r.loanPeriodDays === 'N/A' ? 'N/A' : `${r.loanPeriodDays} days`;
+        const loanPeriodDisplay = r.loanPeriodValue === 'N/A' ? 'N/A' : `${r.loanPeriodValue} ${r.periodUnit}`;
+        const dueDateDisplay = r.originalDueDate === '1970-01-01'
+            ? `${formatDate(r.dueDate)} <span style="color: var(--success-color); font-size: 0.85em;">✓ updated</span>`
+            : formatDueDate(r.dueDate);
         html += '<tr>';
         html += `<td>${r.sno}</td>`;
         html += `<td>₹${r.amount.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>`;
         html += `<td>${formatDate(r.givingDate)}</td>`;
         html += `<td>${r.depositor}</td>`;
         html += `<td>${loanPeriodDisplay}</td>`;
-        html += `<td>${formatDueDate(r.dueDate)}</td>`;
-        html += `<td>₹${totalInterest.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>`;
+        html += `<td>${dueDateDisplay}</td>`;
+        html += `<td>₹${r.totalInterest.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>`;
         html += `<td>₹${r.totalCommission.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>`;
         html += '</tr>';
     });
@@ -487,13 +579,14 @@ function exportCommissionCSV() {
     csv += `Borrower/Group: ${summary.borrowerValue}\n`;
     csv += `Interest Rate: ${summary.interestRate.toFixed(2)}% per annum\n`;
     csv += `Commission Rate: ${summary.commissionRate.toFixed(2)}%\n`;
-    csv += `Period: ${summary.periodCount} months\n\n`;
+    csv += `Period: ${summary.periodCount} ${summary.periodUnit}\n\n`;
 
-    csv += 'SNo,Amount,Giving Date,Depositor,LoanPeriod(Days),Due Date,Interest Amount,Commission\n';
+    const periodUnitLabel = summary.periodUnit === 'days' ? 'Days' : 'Months';
+    csv += `SNo,Amount,Giving Date,Depositor,LoanPeriod(${periodUnitLabel}),Due Date,Interest Amount,Commission\n`;
     results.forEach(r => {
-        const totalInterest = r.monthlyInterest * r.periodCount;
-        const loanPeriodDisplay = r.loanPeriodDays === 'N/A' ? 'N/A' : `${r.loanPeriodDays} days`;
-        csv += `${r.sno},₹${r.amount.toFixed(2)},${r.givingDate},"${r.depositor}",${loanPeriodDisplay},${r.dueDate},₹${totalInterest.toFixed(2)},₹${r.totalCommission.toFixed(2)}\n`;
+        const loanPeriodDisplay = r.loanPeriodValue === 'N/A' ? 'N/A' : `${r.loanPeriodValue} ${r.periodUnit}`;
+        const dueDateDisplay = r.originalDueDate === '1970-01-01' ? `${r.dueDate} (calculated)` : r.dueDate;
+        csv += `${r.sno},₹${r.amount.toFixed(2)},${r.givingDate},"${r.depositor}",${loanPeriodDisplay},${dueDateDisplay},₹${r.totalInterest.toFixed(2)},₹${r.totalCommission.toFixed(2)}\n`;
     });
 
     csv += '\nSummary\n';

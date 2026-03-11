@@ -253,6 +253,12 @@ Monthly Interest = Loan Amount × (Interest Rate / 12)
 Commission = Monthly Interest × Commission Rate
 ```
 
+**For Daily Period** (MVP1):
+```
+Daily Interest = Loan Amount x (Interest Rate / 365)
+Commission = Daily Interest * Commission Rate 
+```
+
 **Example Calculation**:
 ```
 Loan Amount: ₹10,000
@@ -341,8 +347,8 @@ total_commission = sum(
    - **Amount**: Principal amount in INR (₹)
    - **Giving Date**: Date loan was disbursed
    - **Depositor**: Name of lender
-   - **LoanPeriod(Days)**: Number of days between giving_date and due_date (displays "N/A" for loans with no due date, i.e., due_date = 1970-01-01)
-   - **Due Date**: Repayment due date (or "No due date" for 1970-01-01)
+   - **LoanPeriod(Days or months)**: Number of days or months between giving_date and due_date (displays the value of LoanPeriod when no due date, i.e., due_date = 1970-01-01 is given for the record)
+   - **Due Date**: Repayment due date (or "No due date" for 1970-01-01). Also if there is no due_date given and a value for LoanPeriod is included in the Interest calculator, then the due_date value should automatically be picked up depending on the number of Days/Months as provided with respect to giving date. 
    - **Interest Amount**: Total interest for the period
    - **Commission**: Total commission for the period
 

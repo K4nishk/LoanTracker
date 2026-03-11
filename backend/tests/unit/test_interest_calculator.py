@@ -295,6 +295,122 @@ class TestLoanPeriodCalculation:
         assert display == "14 days"
 
 
+class TestDailyInterestCalculation:
+    """Test daily interest calculation for loan period in days."""
+
+    def test_daily_interest_calculation(self):
+        """Test daily interest calculation for 365 days."""
+        amount = 10000.00
+        annual_rate = 0.12  # 12%
+        days = 365
+
+        daily_interest = amount * (annual_rate / 365)
+        total_interest = daily_interest * days
+
+        # Daily interest should be about ₹3.29
+        assert round(daily_interest, 2) == 3.29
+        # Total for 365 days should equal annual interest
+        assert round(total_interest, 2) == 1200.00
+
+    def test_daily_interest_30_days(self):
+        """Test daily interest calculation for 30-day period."""
+        amount = 10000.00
+        annual_rate = 0.12
+        days = 30
+
+        daily_interest = amount * (annual_rate / 365)
+        total_interest = daily_interest * days
+
+        # 30 days of interest
+        assert round(total_interest, 2) == 98.63
+
+    def test_daily_vs_monthly_interest_comparison(self):
+        """Test that daily and monthly calculations are equivalent for matching periods."""
+        amount = 10000.00
+        annual_rate = 0.12
+
+        # Monthly calculation for 12 months
+        monthly_interest = amount * (annual_rate / 12)
+        total_monthly = monthly_interest * 12
+
+        # Daily calculation for 365 days
+        daily_interest = amount * (annual_rate / 365)
+        total_daily = daily_interest * 365
+
+        # Should be approximately equal (within 1 rupee)
+        assert abs(total_monthly - total_daily) < 1.00
+
+
+class TestDueDateAutoCalculation:
+    """Test automatic due_date calculation from giving_date + LoanPeriod."""
+
+    def test_calculate_due_date_from_days(self):
+        """Test calculating due_date by adding days to giving_date."""
+        from datetime import date, timedelta
+
+        giving_date = date(2026, 1, 1)
+        loan_period_days = 30
+
+        calculated_due_date = giving_date + timedelta(days=loan_period_days)
+
+        assert calculated_due_date == date(2026, 1, 31)
+
+    def test_calculate_due_date_from_months_simple(self):
+        """Test calculating due_date by adding months to giving_date."""
+        from datetime import date
+
+        giving_date = date(2026, 1, 1)
+        loan_period_months = 6
+
+        # Simple month addition (JavaScript-style)
+        year = giving_date.year
+        month = giving_date.month + loan_period_months
+        while month > 12:
+            year += 1
+            month -= 12
+        calculated_due_date = date(year, month, giving_date.day)
+
+        assert calculated_due_date == date(2026, 7, 1)
+
+    def test_no_calculation_when_due_date_exists(self):
+        """Test that due_date is not recalculated when it already exists."""
+        from datetime import date
+
+        existing_due_date = date(2026, 12, 31)
+
+        # Should use existing due date, not recalculate
+        # In business logic, we only calculate if due_date == 1970-01-01
+        should_calculate = (existing_due_date == date(1970, 1, 1))
+
+        assert should_calculate is False
+
+
+class TestPeriodUnitConversion:
+    """Test conversion between days and months for LoanPeriod display."""
+
+    def test_days_to_months_conversion(self):
+        """Test converting days to approximate months (30 days per month)."""
+        days = 90
+        approximate_months = round(days / 30)
+
+        assert approximate_months == 3
+
+    def test_months_to_days_conversion(self):
+        """Test that 1 month ~= 30 days for display purposes."""
+        months = 6
+        approximate_days = months * 30
+
+        assert approximate_days == 180
+
+    def test_365_days_equals_12_months(self):
+        """Test that 365 days roughly equals 12 months."""
+        days = 365
+        approximate_months = round(days / 30)
+
+        # 365/30 = 12.17, rounds to 12
+        assert approximate_months == 12
+
+
 class TestSummaryCalculations:
     """Test summary calculations for reports."""
 
