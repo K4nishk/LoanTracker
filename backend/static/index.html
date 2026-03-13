@@ -100,51 +100,35 @@
             <div id="commission" class="tab-content">
                 <div class="card">
                     <h2>Interest Calculator</h2>
-                    <form id="commission-form" onsubmit="calculateCommission(event)">
+                    <form id="commission-form" onsubmit="calculateInterestByMonth(event)">
                         <div class="form-row">
                             <div class="form-group">
-                                <label for="comm_borrower">Select Borrower/Group *</label>
-                                <select id="comm_borrower" required onchange="updateCommissionType()">
-                                    <option value="">-- Select --</option>
-                                </select>
+                                <label for="month_filter">Select Filter Date *</label>
+                                <input type="date" id="month_filter" required>
+                                <small>Select any date using the date picker. The system will filter all active loans with due dates greater than the selected date.</small>
                             </div>
-                            <div class="form-group">
-                                <label for="comm_type">Filter Type</label>
-                                <select id="comm_type">
-                                    <option value="name">By Borrower Name</option>
-                                    <option value="group">By Borrower Group</option>
-                                </select>
+                            <div class="form-group" style="display: flex; align-items: flex-end;">
+                                <button type="button" onclick="loadLoansForMonth()" class="button button-secondary">
+                                    Load Loans for Month
+                                </button>
                             </div>
                         </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="interest_rate">Interest Rate (% per annum) *</label>
-                                <input type="number" id="interest_rate" step="0.01" min="0.01" max="100" required>
-                                <small>Annual interest rate (e.g., 12 for 12%)</small>
-                            </div>
-                            <div class="form-group">
-                                <label for="commission_rate">Commission Rate (%) *</label>
-                                <input type="number" id="commission_rate" step="0.01" min="0.01" max="100" required>
-                                <small>Must be less than interest rate</small>
-                            </div>
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="period_count">Loan Period *</label>
-                                <input type="number" id="period_count" min="1" max="3650" value="12" required>
-                                <small>Enter period value (e.g., 12 for 12 months or 365 for 365 days)</small>
-                            </div>
-                            <div class="form-group">
-                                <label for="period_unit">Period Unit *</label>
-                                <select id="period_unit" required>
-                                    <option value="months" selected>Months</option>
-                                    <option value="days">Days</option>
-                                </select>
-                                <small>Choose between months or days</small>
-                            </div>
-                        </div>
-                        <button type="submit" class="button button-primary">Calculate Interest</button>
                     </form>
+
+                    <!-- Dynamically loaded loan list with per-record rates -->
+                    <div id="loans-for-month" style="margin-top: 20px; display: none;">
+                        <h3>Loans Due in Selected Month</h3>
+                        <p class="info-text">Enter individual interest and commission rates for each loan below.</p>
+
+                        <div id="loan-rates-container"></div>
+
+                        <div style="margin-top: 20px;">
+                            <button type="button" onclick="calculateInterestForLoadedLoans()" class="button button-primary">
+                                Calculate Interest & Commission
+                            </button>
+                        </div>
+                    </div>
+
                     <div id="commission-results" style="margin-top: 30px;"></div>
                 </div>
             </div>

@@ -15,7 +15,9 @@
       "Bash(pytest:*)",
       "Bash(/opt/homebrew/bin/pytest tests/ -v --tb=short)",
       "Bash(venv/bin/pip install:*)",
-      "Bash(venv/bin/pytest tests/ -v --tb=short)"
+      "Bash(venv/bin/pytest tests/ -v --tb=short)",
+      "Bash(venv/bin/pytest:*)",
+      "Bash(/opt/homebrew/bin/pytest tests/integration/test_interest_calculator_filtering.py -v)"
     ]
   }
 }

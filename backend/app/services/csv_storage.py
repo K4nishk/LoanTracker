@@ -22,7 +22,7 @@ class CSVStorageService:
     FIELDNAMES = [
         'id', 'borrower_name', 'amount', 'depositor_name',
         'giving_date', 'due_date', 'borrower_group', 'depositor_group',
-        'status', 'created_at', 'updated_at'
+        'status', 'paidoff_date', 'created_at', 'updated_at'
     ]
 
     def __init__(self):

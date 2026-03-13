@@ -250,6 +250,17 @@ th {
     border-bottom: 2px solid var(--border-color);
 }
 
+/* Sortable headers */
+.sortable-header {
+    cursor: pointer;
+    user-select: none;
+    transition: background-color 0.2s;
+}
+
+.sortable-header:hover {
+    background-color: var(--border-color);
+}
+
 td {
     padding: 1rem;
     border-bottom: 1px solid var(--border-color);
@@ -456,4 +467,264 @@ tr:hover {
     body {
         background: white;
     }
+}
+
+/* ========================================
+   New Interest Calculator Styles
+   ======================================== */
+
+.loans-rate-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-top: 15px;
+}
+
+.loan-rate-row {
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 15px;
+    background: var(--card-bg);
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 20px;
+    align-items: center;
+}
+
+.loan-info {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.loan-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.loan-header strong {
+    font-size: 1.1em;
+    color: var(--text-color);
+}
+
+.loan-amount {
+    font-size: 1.2em;
+    font-weight: 600;
+    color: var(--primary-color);
+}
+
+.loan-details {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+    font-size: 0.9em;
+    color: var(--text-secondary);
+}
+
+.days-badge {
+    background: var(--accent-color);
+    color: white;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.85em;
+    font-weight: 600;
+}
+
+.depositor-name {
+    font-style: italic;
+}
+
+.rate-inputs {
+    display: flex;
+    gap: 15px;
+}
+
+.rate-input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    flex: 1;
+}
+
+.rate-input-group label {
+    font-size: 0.85em;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.rate-input-group input {
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 1em;
+    width: 100%;
+}
+
+.rate-input-group input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
+}
+
+.info-text {
+    color: var(--text-secondary);
+    font-size: 0.95em;
+    margin: 10px 0;
+    padding: 10px;
+    background: var(--bg-color);
+    border-left: 3px solid var(--accent-color);
+    border-radius: 4px;
+}
+
+/* Responsive adjustments for loan rate rows */
+@media (max-width: 768px) {
+    .loan-rate-row {
+        grid-template-columns: 1fr;
+        gap: 15px;
+    }
+
+    .rate-inputs {
+        flex-direction: column;
+    }
+
+    .loan-details {
+        flex-direction: column;
+        gap: 5px;
+    }
+}
+
+/* Inline Editing Styles */
+.editable-cell {
+    cursor: pointer;
+    position: relative;
+    transition: background-color 0.2s, box-shadow 0.2s;
+}
+
+.editable-cell:hover {
+    background-color: #f3f4f6;
+    box-shadow: inset 0 0 0 1px #d1d5db;
+}
+
+.editable-cell.editing {
+    padding: 0;
+    background-color: #fff;
+    box-shadow: inset 0 0 0 2px #3b82f6;
+}
+
+.editable-cell.saving {
+    background-color: #fef3c7;
+    font-style: italic;
+    color: #92400e;
+}
+
+.editable-cell.save-success {
+    background-color: #d1fae5;
+    animation: successFlash 1s ease-out;
+}
+
+.editable-cell.save-error {
+    background-color: #fee2e2;
+    animation: errorFlash 2s ease-out;
+}
+
+@keyframes successFlash {
+    0% { background-color: #10b981; }
+    100% { background-color: #d1fae5; }
+}
+
+@keyframes errorFlash {
+    0% { background-color: #ef4444; }
+    100% { background-color: #fee2e2; }
+}
+
+.inline-edit-input {
+    width: 100%;
+    padding: 0.75rem;
+    border: none;
+    outline: none;
+    font-family: inherit;
+    font-size: inherit;
+    background: transparent;
+}
+
+.inline-edit-input:focus {
+    outline: none;
+}
+
+/* Modal/Popup Styles */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.modal-content {
+    background: white;
+    border-radius: 8px;
+    padding: 2rem;
+    max-width: 500px;
+    width: 90%;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateY(-20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.modal-header {
+    margin-bottom: 1.5rem;
+}
+
+.modal-header h3 {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 1.5rem;
+}
+
+.modal-body {
+    margin-bottom: 1.5rem;
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+}
+
+.modal-info {
+    background: #dbeafe;
+    border-left: 4px solid #3b82f6;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    border-radius: 4px;
+}
+
+.modal-warning {
+    background: #fef3c7;
+    border-left: 4px solid #f59e0b;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    border-radius: 4px;
 }

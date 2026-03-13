@@ -15,21 +15,33 @@ window.addEventListener('DOMContentLoaded', () => {
     const today = new Date().toISOString().split('T')[0];
     document.getElementById('giving_date').value = today;
 
+    // Set today's date as default for month_filter (date picker) in Interest Calculator
+    const monthFilterInput = document.getElementById('month_filter');
+    if (monthFilterInput) {
+        monthFilterInput.value = today; // Use same 'today' variable from above
+    }
+
     // Load initial data
     loadLoans();
     loadStatistics();
     loadConfig();
     loadBorrowerOptions(); // For commission calculator
+
+    // Initialize action button handlers (one-time setup)
+    initializeActionHandlers();
 });
 
 // Tab Management - FIXED: Proper tab switching
 function showTab(tabName) {
+    // Close any open modals when switching tabs
+    closeModal();
+
     // Hide all tab content
     document.querySelectorAll('.tab-content').forEach(content => {
         content.classList.remove('active');
         content.style.display = 'none';
     });
-    
+
     // Remove active from all tabs
     document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
 
@@ -38,7 +50,7 @@ function showTab(tabName) {
     if (selectedContent) {
         selectedContent.classList.add('active');
         selectedContent.style.display = 'block';
-        
+
         // Scroll to top of content
         selectedContent.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
@@ -125,6 +137,12 @@ async function loadLoans() {
     }
 }
 
+// Sort state for View Loans table
+let viewLoansSortConfig = {
+    key: null,
+    direction: 'asc' // 'asc' or 'desc'
+};
+
 // Display Loans Table
 function displayLoans(loans) {
     const container = document.getElementById('loans-table-container');
@@ -134,37 +152,348 @@ function displayLoans(loans) {
         return;
     }
 
+    // Apply sorting if sort config is set
+    const sortedLoans = sortLoans([...loans], viewLoansSortConfig);
+
     let html = '<div class="table-container"><table><thead><tr>';
-    html += '<th>SNo</th><th>Borrower</th><th>Amount</th><th>Currency</th><th>Depositor</th>';
-    html += '<th>Giving Date</th><th>Due Date</th><th>Status</th><th>Actions</th>';
+    html += '<th>SNo</th>';
+    html += createSortableHeader('borrower_name', 'Borrower Name');
+    html += createSortableHeader('borrower_group', 'Borrower Group');
+    html += '<th>Amount</th><th>Currency</th>';
+    html += createSortableHeader('depositor_name', 'Depositor Name');
+    html += createSortableHeader('depositor_group', 'Depositor Group');
+    html += createSortableHeader('giving_date', 'Giving Date');
+    html += createSortableHeader('due_date', 'Due Date');
+    html += '<th>Status</th><th>Actions</th>';
     html += '</tr></thead><tbody>';
 
-    loans.forEach((loan, index) => {
+    sortedLoans.forEach((loan, index) => {
         const sno = generateSNo(index, loan.giving_date);
         const currencySymbol = '₹'; // Always INR
+        const formattedAmount = parseFloat(loan.amount).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+
         html += '<tr>';
         html += `<td>${sno}</td>`;
-        html += `<td>${loan.borrower_name}</td>`;
-        html += `<td>${currencySymbol}${parseFloat(loan.amount).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>`;
+        // Editable: Borrower Name
+        html += `<td class="editable-cell" onclick="makeEditable(this, '${loan.id}', 'borrower_name', 'text')" title="Click to edit">${loan.borrower_name}</td>`;
+        // Editable: Borrower Group
+        html += `<td class="editable-cell" onclick="makeEditable(this, '${loan.id}', 'borrower_group', 'text')" title="Click to edit">${loan.borrower_group || '-'}</td>`;
+        // Editable: Amount
+        html += `<td class="editable-cell" onclick="makeEditable(this, '${loan.id}', 'amount', 'number')" title="Click to edit" data-raw-value="${loan.amount}">${currencySymbol}${formattedAmount}</td>`;
         html += `<td><span class="currency-badge">${loan.currency || 'INR'}</span></td>`;
-        html += `<td>${loan.depositor_name}</td>`;
-        html += `<td>${formatDate(loan.giving_date)}</td>`;
-        html += `<td>${formatDueDate(loan.due_date)}</td>`;
-        html += `<td><span class="status-badge status-${loan.status}">${loan.status.toUpperCase()}</span></td>`;
-        html += '<td>';
-        html += `<select onchange="updateLoanStatus('${loan.id}', this.value)" class="icon-button">`;
-        html += `<option value="${loan.status}" selected>${loan.status}</option>`;
-        html += `<option value="active">Active</option>`;
-        html += `<option value="paid_off">Paid Off</option>`;
-        html += `<option value="overdue">Overdue</option>`;
-        html += '</select>';
-        html += ` <button class="icon-button button-danger" onclick="deleteLoan('${loan.id}')">Delete</button>`;
+        // Editable: Depositor Name
+        html += `<td class="editable-cell" onclick="makeEditable(this, '${loan.id}', 'depositor_name', 'text')" title="Click to edit">${loan.depositor_name}</td>`;
+        // Editable: Depositor Group
+        html += `<td class="editable-cell" onclick="makeEditable(this, '${loan.id}', 'depositor_group', 'text')" title="Click to edit">${loan.depositor_group || '-'}</td>`;
+        // Editable: Giving Date
+        html += `<td class="editable-cell" onclick="makeEditable(this, '${loan.id}', 'giving_date', 'date')" title="Click to edit" data-raw-value="${loan.giving_date}">${formatDate(loan.giving_date)}</td>`;
+        // Editable: Due Date
+        html += `<td class="editable-cell" onclick="makeEditable(this, '${loan.id}', 'due_date', 'date')" title="Click to edit" data-raw-value="${loan.due_date}">${formatDueDate(loan.due_date)}</td>`;
+        html += `<td><span class="status-badge status-${loan.status}">${formatStatus(loan.status)}</span></td>`;
+        html += '<td class="actions-cell">';
+        html += `<button class="icon-button action-paid-off" data-loan-id="${loan.id}" title="Mark as Paid Off">💰 Paid Off</button> `;
+        html += `<button class="icon-button action-extend" data-loan-id="${loan.id}" title="Extend Loan">📅 Extend</button> `;
+        html += `<button class="icon-button button-danger action-delete" data-loan-id="${loan.id}" title="Delete Loan">🗑️ Delete</button>`;
         html += '</td>';
         html += '</tr>';
     });
 
     html += '</tbody></table></div>';
     container.innerHTML = html;
+}
+
+// Initialize action button handlers (called once on page load)
+function initializeActionHandlers() {
+    const container = document.getElementById('loans-table-container');
+    if (!container) return;
+
+    // Use event delegation for action buttons
+    container.addEventListener('click', (e) => {
+        const target = e.target.closest('button');
+        if (!target) return;
+
+        const loanId = target.getAttribute('data-loan-id');
+        if (!loanId) return;
+
+        if (target.classList.contains('action-paid-off')) {
+            showPaidOffPopup(loanId);
+        } else if (target.classList.contains('action-extend')) {
+            showExtendPopup(loanId);
+        } else if (target.classList.contains('action-delete')) {
+            deleteLoan(loanId);
+        }
+    });
+}
+
+// Create sortable table header
+function createSortableHeader(key, label) {
+    const isActive = viewLoansSortConfig.key === key;
+    const direction = isActive ? viewLoansSortConfig.direction : 'asc';
+    const arrow = isActive ? (direction === 'asc' ? ' ▲' : ' ▼') : '';
+
+    return `<th class="sortable-header" onclick="handleSort('${key}')">${label}${arrow}</th>`;
+}
+
+// Handle sort when column header is clicked
+function handleSort(key) {
+    if (viewLoansSortConfig.key === key) {
+        // Toggle direction if same column
+        viewLoansSortConfig.direction = viewLoansSortConfig.direction === 'asc' ? 'desc' : 'asc';
+    } else {
+        // New column, start with ascending
+        viewLoansSortConfig.key = key;
+        viewLoansSortConfig.direction = 'asc';
+    }
+
+    // Re-render with sorted data
+    displayLoans(allLoans);
+}
+
+// Sort loans based on sort config
+function sortLoans(loans, sortConfig) {
+    if (!sortConfig.key) {
+        return loans; // No sorting
+    }
+
+    return loans.sort((a, b) => {
+        let aVal = a[sortConfig.key];
+        let bVal = b[sortConfig.key];
+
+        // Handle null/undefined values - push to end
+        if (aVal === null || aVal === undefined || aVal === '') {
+            return 1;
+        }
+        if (bVal === null || bVal === undefined || bVal === '') {
+            return -1;
+        }
+
+        // Date sorting
+        if (sortConfig.key === 'giving_date' || sortConfig.key === 'due_date') {
+            // Handle special 1970-01-01 date (no due date)
+            if (sortConfig.key === 'due_date') {
+                if (aVal === '1970-01-01') return 1;
+                if (bVal === '1970-01-01') return -1;
+            }
+
+            const dateA = new Date(aVal);
+            const dateB = new Date(bVal);
+            return sortConfig.direction === 'asc'
+                ? dateA - dateB
+                : dateB - dateA;
+        }
+
+        // String sorting (case-insensitive)
+        const strA = String(aVal).toLowerCase();
+        const strB = String(bVal).toLowerCase();
+
+        if (strA < strB) {
+            return sortConfig.direction === 'asc' ? -1 : 1;
+        }
+        if (strA > strB) {
+            return sortConfig.direction === 'asc' ? 1 : -1;
+        }
+        return 0;
+    });
+}
+
+// Inline Editing Functionality
+let currentlyEditingCell = null;
+
+function makeEditable(cell, loanId, fieldName, inputType) {
+    // Prevent multiple simultaneous edits
+    if (currentlyEditingCell && currentlyEditingCell !== cell) {
+        return;
+    }
+
+    currentlyEditingCell = cell;
+    const originalValue = cell.getAttribute('data-raw-value') || cell.textContent.trim();
+    const displayValue = cell.textContent.trim();
+
+    // Get the actual value for editing
+    let editValue = originalValue;
+    if (fieldName === 'amount') {
+        // Remove currency symbol and formatting for amount
+        editValue = originalValue;
+    } else if (fieldName === 'borrower_group' || fieldName === 'depositor_group') {
+        // Handle optional fields - convert '-' to empty string
+        editValue = displayValue === '-' ? '' : displayValue;
+    }
+
+    // Create input element
+    const input = document.createElement('input');
+    input.type = inputType;
+    input.value = editValue;
+    input.className = 'inline-edit-input';
+
+    if (inputType === 'number') {
+        input.step = '0.01';
+        input.min = '0';
+    }
+
+    // Replace cell content with input
+    cell.textContent = '';
+    cell.appendChild(input);
+    cell.classList.add('editing');
+    input.focus();
+    input.select();
+
+    // Save on blur
+    input.addEventListener('blur', async () => {
+        await saveEdit(cell, loanId, fieldName, input.value, originalValue, displayValue);
+    });
+
+    // Save on Enter, cancel on Escape
+    input.addEventListener('keydown', async (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            await saveEdit(cell, loanId, fieldName, input.value, originalValue, displayValue);
+        } else if (e.key === 'Escape') {
+            e.preventDefault();
+            cancelEdit(cell, displayValue);
+        }
+    });
+}
+
+async function saveEdit(cell, loanId, fieldName, newValue, originalValue, displayValue) {
+    if (!currentlyEditingCell) return; // Already saved or cancelled
+
+    currentlyEditingCell = null;
+    cell.classList.remove('editing');
+
+    // Normalize empty values for optional fields
+    if ((fieldName === 'borrower_group' || fieldName === 'depositor_group') && newValue.trim() === '') {
+        newValue = null;
+    }
+
+    // Validate
+    const validation = validateField(fieldName, newValue, loanId);
+    if (!validation.valid) {
+        showError(validation.error);
+        cell.textContent = displayValue;
+        return;
+    }
+
+    // Check if value actually changed
+    const normalizedOldValue = (fieldName === 'borrower_group' || fieldName === 'depositor_group') && displayValue === '-' ? null : originalValue;
+    if (newValue === normalizedOldValue || newValue === originalValue) {
+        // No change, just restore display
+        cell.textContent = displayValue;
+        return;
+    }
+
+    // Show loading state
+    cell.textContent = 'Saving...';
+    cell.classList.add('saving');
+
+    try {
+        // Prepare update payload
+        const updateData = {};
+        if (fieldName === 'amount') {
+            updateData[fieldName] = parseFloat(newValue);
+        } else {
+            updateData[fieldName] = newValue;
+        }
+
+        // Send PATCH request
+        await apiCall(`/loans/${loanId}`, {
+            method: 'PATCH',
+            body: JSON.stringify(updateData)
+        });
+
+        // Update local data
+        const loanIndex = allLoans.findIndex(l => l.id === loanId);
+        if (loanIndex !== -1) {
+            allLoans[loanIndex][fieldName] = newValue;
+        }
+
+        // Show success animation
+        cell.classList.remove('saving');
+        cell.classList.add('save-success');
+        setTimeout(() => cell.classList.remove('save-success'), 1000);
+
+        // Reload table to show updated formatting
+        displayLoans(allLoans);
+        showSuccess(`${fieldName.replace('_', ' ')} updated successfully`);
+
+    } catch (error) {
+        console.error('Failed to update loan:', error);
+        cell.classList.remove('saving');
+        cell.classList.add('save-error');
+        showError(`Failed to update ${fieldName.replace('_', ' ')}`);
+
+        // Revert to original value
+        setTimeout(() => {
+            cell.classList.remove('save-error');
+            cell.textContent = displayValue;
+        }, 2000);
+    }
+}
+
+function cancelEdit(cell, originalDisplayValue) {
+    currentlyEditingCell = null;
+    cell.classList.remove('editing');
+    cell.textContent = originalDisplayValue;
+}
+
+function validateField(fieldName, value, loanId) {
+    // Amount validation
+    if (fieldName === 'amount') {
+        const amount = parseFloat(value);
+        if (isNaN(amount) || amount <= 0) {
+            return { valid: false, error: 'Amount must be greater than 0' };
+        }
+        if (!/^\d+(\.\d{1,2})?$/.test(value)) {
+            return { valid: false, error: 'Amount can have maximum 2 decimal places' };
+        }
+    }
+
+    // Name validation (required fields)
+    if (fieldName === 'borrower_name' || fieldName === 'depositor_name') {
+        if (!value || value.trim() === '') {
+            return { valid: false, error: `${fieldName.replace('_', ' ')} is required` };
+        }
+        if (value.length > 200) {
+            return { valid: false, error: `${fieldName.replace('_', ' ')} must be 200 characters or less` };
+        }
+    }
+
+    // Group validation (optional fields)
+    if (fieldName === 'borrower_group' || fieldName === 'depositor_group') {
+        if (value && value.length > 100) {
+            return { valid: false, error: `${fieldName.replace('_', ' ')} must be 100 characters or less` };
+        }
+    }
+
+    // Date validation
+    if (fieldName === 'giving_date' || fieldName === 'due_date') {
+        if (!value || value === '') {
+            return { valid: false, error: 'Date is required' };
+        }
+
+        const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+        if (!datePattern.test(value)) {
+            return { valid: false, error: 'Invalid date format (use YYYY-MM-DD)' };
+        }
+
+        // Special case: 1970-01-01 is allowed for due_date (no due date)
+        if (fieldName === 'due_date' && value === '1970-01-01') {
+            return { valid: true };
+        }
+
+        // Validate that due_date >= giving_date (if both are available)
+        if (fieldName === 'due_date') {
+            const loan = allLoans.find(l => l.id === loanId);
+            if (loan && loan.giving_date && value !== '1970-01-01') {
+                const givingDate = new Date(loan.giving_date);
+                const dueDate = new Date(value);
+                if (dueDate < givingDate) {
+                    return { valid: false, error: 'Due date cannot be before giving date' };
+                }
+            }
+        }
+    }
+
+    return { valid: true };
 }
 
 // Update Loan Status
@@ -223,6 +552,215 @@ async function deleteLoan(loanId) {
     } catch (error) {
         console.error('Failed to delete loan:', error);
     }
+}
+
+// Show Paid Off Popup
+function showPaidOffPopup(loanId) {
+    const loan = allLoans.find(l => l.id === loanId);
+    if (!loan) {
+        showError('Loan not found');
+        return;
+    }
+
+    const today = new Date().toISOString().split('T')[0];
+
+    const modalHTML = `
+        <div class="modal-overlay" id="paidoff-modal" onclick="closeModal(event)">
+            <div class="modal-content" onclick="event.stopPropagation()">
+                <div class="modal-header">
+                    <h3>Mark Loan as Paid Off</h3>
+                </div>
+                <div class="modal-body">
+                    <div class="modal-info">
+                        <strong>Loan Details:</strong><br>
+                        Borrower: ${loan.borrower_name}<br>
+                        Amount: ₹${parseFloat(loan.amount).toLocaleString('en-IN', {minimumFractionDigits: 2})}<br>
+                        Due Date: ${formatDueDate(loan.due_date)}
+                    </div>
+                    <div class="form-group">
+                        <label for="paidoff-date">Paid Off Date *</label>
+                        <input type="date" id="paidoff-date" value="${today}" max="${today}" required>
+                        <small>Date when the loan was paid off (cannot be in the future)</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="button button-secondary" onclick="closeModal()">Cancel</button>
+                    <button class="button button-primary" id="confirm-paid-off-btn" data-loan-id="${loanId}">Mark as Paid Off</button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+    // Attach event handler to confirm button
+    const confirmBtn = document.getElementById('confirm-paid-off-btn');
+    if (confirmBtn) {
+        confirmBtn.addEventListener('click', () => confirmPaidOff(loanId));
+    }
+}
+
+async function confirmPaidOff(loanId) {
+    const paidoffDateInput = document.getElementById('paidoff-date');
+    const paidoffDate = paidoffDateInput.value;
+
+    if (!paidoffDate) {
+        showError('Please select a paid off date');
+        return;
+    }
+
+    const today = new Date().toISOString().split('T')[0];
+    if (paidoffDate > today) {
+        showError('Paid off date cannot be in the future');
+        return;
+    }
+
+    const loan = allLoans.find(l => l.id === loanId);
+
+    // Check if should delete (paid on due date)
+    if (loan.due_date === today || paidoffDate === loan.due_date) {
+        const shouldDelete = confirm(
+            'Loan paid on due date. Do you want to delete this record permanently?\n\n' +
+            'Click OK to delete, or Cancel to keep the record as paid off.'
+        );
+
+        if (shouldDelete) {
+            try {
+                await apiCall(`/loans/${loanId}`, { method: 'DELETE' });
+                showSuccess('Loan deleted successfully!');
+                closeModal();
+                loadLoans();
+                return;
+            } catch (error) {
+                console.error('Failed to delete loan:', error);
+                showError('Failed to delete loan');
+                return;
+            }
+        }
+    }
+
+    // Mark as paid off
+    try {
+        await apiCall(`/loans/${loanId}`, {
+            method: 'PATCH',
+            body: JSON.stringify({
+                status: 'paid_off',
+                paidoff_date: paidoffDate
+            })
+        });
+        showSuccess('Loan marked as paid off!');
+        closeModal();
+        loadLoans();
+    } catch (error) {
+        console.error('Failed to update loan:', error);
+        showError('Failed to mark loan as paid off');
+    }
+}
+
+// Show Extend Popup
+function showExtendPopup(loanId) {
+    const loan = allLoans.find(l => l.id === loanId);
+    if (!loan) {
+        showError('Loan not found');
+        return;
+    }
+
+    const today = new Date().toISOString().split('T')[0];
+    const oldDueDate = loan.due_date;
+    const minDate = new Date(oldDueDate);
+    minDate.setDate(minDate.getDate() + 1);
+    const minDateStr = minDate.toISOString().split('T')[0];
+
+    const modalHTML = `
+        <div class="modal-overlay" id="extend-modal" onclick="closeModal(event)">
+            <div class="modal-content" onclick="event.stopPropagation()">
+                <div class="modal-header">
+                    <h3>Extend Loan</h3>
+                </div>
+                <div class="modal-body">
+                    <div class="modal-info">
+                        <strong>Loan Details:</strong><br>
+                        Borrower: ${loan.borrower_name}<br>
+                        Amount: ₹${parseFloat(loan.amount).toLocaleString('en-IN', {minimumFractionDigits: 2})}<br>
+                        Current Due Date: ${formatDueDate(loan.due_date)}<br>
+                        Giving Date: ${formatDate(loan.giving_date)}
+                    </div>
+                    <div class="modal-warning">
+                        <strong>Note:</strong> Extending the loan will update the giving date to today's date and set a new due date.
+                    </div>
+                    <div class="form-group">
+                        <label for="new-due-date">New Due Date *</label>
+                        <input type="date" id="new-due-date" min="${minDateStr}" required>
+                        <small>New due date must be after ${formatDueDate(oldDueDate)}</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="button button-secondary" onclick="closeModal()">Cancel</button>
+                    <button class="button button-primary" id="confirm-extend-btn" data-loan-id="${loanId}">Extend Loan</button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+    // Attach event handler to confirm button
+    const confirmBtn = document.getElementById('confirm-extend-btn');
+    if (confirmBtn) {
+        confirmBtn.addEventListener('click', () => confirmExtend(loanId));
+    }
+}
+
+async function confirmExtend(loanId) {
+    const newDueDateInput = document.getElementById('new-due-date');
+    const newDueDate = newDueDateInput.value;
+
+    if (!newDueDate) {
+        showError('Please select a new due date');
+        return;
+    }
+
+    const loan = allLoans.find(l => l.id === loanId);
+    const oldDueDate = new Date(loan.due_date);
+    const selectedDate = new Date(newDueDate);
+
+    if (selectedDate <= oldDueDate) {
+        showError('New due date must be after the current due date');
+        return;
+    }
+
+    // Set new giving date to today
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const newGivingDateStr = today.toISOString().split('T')[0];
+
+    try {
+        await apiCall(`/loans/${loanId}`, {
+            method: 'PATCH',
+            body: JSON.stringify({
+                giving_date: newGivingDateStr,
+                due_date: newDueDate,
+                status: 'active'
+            })
+        });
+        showSuccess(`Loan extended! New giving date: ${newGivingDateStr}, New due date: ${newDueDate}`);
+        closeModal();
+        loadLoans();
+    } catch (error) {
+        console.error('Failed to extend loan:', error);
+        showError('Failed to extend loan');
+    }
+}
+
+// Close Modal
+function closeModal(event) {
+    // If event is provided and click was on the overlay itself (not the modal content)
+    if (event && event.target !== event.currentTarget) {
+        return;
+    }
+
+    const modals = document.querySelectorAll('.modal-overlay');
+    modals.forEach(modal => modal.remove());
 }
 
 // Load Statistics
@@ -367,7 +905,304 @@ function updateCommissionType() {
     }
 }
 
-// Calculate Commission
+// ========================================
+// NEW INTEREST CALCULATOR (Month-based with per-record rates)
+// ========================================
+
+let loansForSelectedMonth = [];
+
+// Load loans for selected month
+async function loadLoansForMonth() {
+    const dateInput = document.getElementById('month_filter').value;
+    if (!dateInput) {
+        showError('Please select a date using the date picker');
+        return;
+    }
+
+    // Validate date format YYYY-MM-DD
+    const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+    if (!datePattern.test(dateInput)) {
+        showError('Invalid date format. Please use the date picker to select a date');
+        return;
+    }
+
+    try {
+        const loans = allLoans.length > 0 ? allLoans : await apiCall('/loans/');
+
+        // Parse selected filter date (no month extraction)
+        const filterDate = new Date(dateInput);
+        filterDate.setHours(0, 0, 0, 0);
+
+        // Format date for display messages
+        const filterDateFormatted = filterDate.toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+
+        // CORE FILTER LOGIC: Show all loans where due_date > selected filter date
+        // Exclude: 1970-01-01 (no due date) and paid_off loans
+        const filteredLoans = loans.filter(loan => {
+            if (loan.due_date === '1970-01-01') return false;
+            if (loan.status === 'paid_off') return false;
+
+            const dueDate = new Date(loan.due_date);
+            dueDate.setHours(0, 0, 0, 0);
+
+            // Filter: due_date > filter_date (strictly greater than)
+            return dueDate > filterDate;
+        });
+
+        if (filteredLoans.length === 0) {
+            showError(`No active loans found with due dates greater than ${filterDateFormatted}. Try a different date.`);
+            document.getElementById('loans-for-month').style.display = 'none';
+            return;
+        }
+
+        loansForSelectedMonth = filteredLoans;
+        displayLoansForMonthWithRates(filteredLoans, dateInput);
+        showSuccess(`Loaded ${filteredLoans.length} loan(s) with due dates greater than ${filterDateFormatted}`);
+
+    } catch (error) {
+        console.error('Failed to load loans:', error);
+        showError('Failed to load loans for selected month');
+    }
+}
+
+// Display loans with per-record rate inputs
+function displayLoansForMonthWithRates(loans, selectedMonth) {
+    const container = document.getElementById('loan-rates-container');
+    const loansSection = document.getElementById('loans-for-month');
+
+    let html = '<div class="loans-rate-list">';
+
+    loans.forEach((loan, index) => {
+        const amount = parseFloat(loan.amount);
+        const givingDate = new Date(loan.giving_date);
+        const dueDate = new Date(loan.due_date);
+        const daysBetween = Math.ceil((dueDate - givingDate) / (1000 * 60 * 60 * 24));
+
+        html += `
+            <div class="loan-rate-row" data-loan-id="${loan.id}">
+                <div class="loan-info">
+                    <div class="loan-header">
+                        <strong>${loan.borrower_name}</strong>
+                        <span class="loan-amount">₹${amount.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
+                    </div>
+                    <div class="loan-details">
+                        <span>${formatDate(loan.giving_date)} → ${formatDate(loan.due_date)}</span>
+                        <span class="days-badge">${daysBetween} days</span>
+                        <span class="depositor-name">Depositor: ${loan.depositor_name}</span>
+                    </div>
+                </div>
+                <div class="rate-inputs">
+                    <div class="rate-input-group">
+                        <label for="interest_rate_${loan.id}">Interest Rate (%)</label>
+                        <input
+                            type="number"
+                            id="interest_rate_${loan.id}"
+                            class="interest-rate-input"
+                            min="0.01"
+                            max="100"
+                            step="0.01"
+                            value="12.00"
+                            required
+                        />
+                    </div>
+                    <div class="rate-input-group">
+                        <label for="commission_rate_${loan.id}">Commission (%) - Optional</label>
+                        <input
+                            type="number"
+                            id="commission_rate_${loan.id}"
+                            class="commission-rate-input"
+                            min="0"
+                            max="100"
+                            step="0.01"
+                            value="0.00"
+                            placeholder="Enter rate or leave 0"
+                        />
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+
+    html += '</div>';
+    container.innerHTML = html;
+    loansSection.style.display = 'block';
+}
+
+// Calculate interest for loaded loans with per-record rates
+async function calculateInterestForLoadedLoans() {
+    if (loansForSelectedMonth.length === 0) {
+        showError('No loans loaded. Please load loans for a month first.');
+        return;
+    }
+
+    const monthInput = document.getElementById('month_filter').value;
+    const results = [];
+    let totalAmount = 0;
+    let totalInterest = 0;
+    let totalCommission = 0;
+
+    // Calculate for each loan
+    loansForSelectedMonth.forEach((loan, index) => {
+        const amount = parseFloat(loan.amount);
+        const interestRateInput = document.getElementById(`interest_rate_${loan.id}`);
+        const commissionRateInput = document.getElementById(`commission_rate_${loan.id}`);
+
+        if (!interestRateInput) {
+            console.error(`Interest rate input not found for loan ${loan.id}`);
+            return;
+        }
+
+        const annualRate = parseFloat(interestRateInput.value) / 100; // Convert to decimal
+        const commissionRate = parseFloat(commissionRateInput.value || '0') / 100;
+
+        // Calculate actual days between dates
+        const givingDate = new Date(loan.giving_date);
+        const dueDate = new Date(loan.due_date);
+        const daysBetween = Math.ceil((dueDate - givingDate) / (1000 * 60 * 60 * 24));
+
+        // CORRECT FORMULA: Interest = Amount × (Annual Rate / 365) × Days
+        const interest = amount * (annualRate / 365) * daysBetween;
+
+        // Commission only if commission rate is provided (> 0)
+        const commission = commissionRate > 0 ? (interest * commissionRate) : 0;
+
+        results.push({
+            sno: generateSNo(index, loan.giving_date),
+            borrower: loan.borrower_name,
+            depositor: loan.depositor_name,
+            amount: amount,
+            givingDate: loan.giving_date,
+            dueDate: loan.due_date,
+            daysBetween: daysBetween,
+            annualRate: annualRate * 100,
+            commissionRate: commissionRate * 100,
+            interest: interest,
+            commission: commission,
+            hasCommission: commissionRate > 0,
+            loanId: loan.id
+        });
+
+        totalAmount += amount;
+        totalInterest += interest;
+        if (commissionRate > 0) {
+            totalCommission += commission;
+        }
+    });
+
+    // Display results
+    displayInterestCalculationResults(results, {
+        selectedMonth: monthInput,
+        totalAmount,
+        totalInterest,
+        totalCommission
+    });
+
+    showSuccess('Interest calculated successfully!');
+}
+
+// Display interest calculation results
+function displayInterestCalculationResults(results, summary) {
+    const container = document.getElementById('commission-results');
+
+    const monthDate = new Date(summary.selectedMonth + '-01');
+    const monthName = monthDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
+
+    let html = '<div class="card">';
+    html += `<h3>Interest Calculation Results - ${monthName}</h3>`;
+    html += `<p class="info-text">Calculated using formula: Amount × (Annual Rate / 365) × Days</p>`;
+
+    html += '<div style="margin: 20px 0;">';
+    html += '<button class="button button-primary" onclick="exportInterestCalculationCSV()">📥 Export Interest Report as CSV</button>';
+    html += '</div>';
+
+    // Results table
+    html += '<div class="table-container"><table>';
+    html += '<thead><tr>';
+    html += '<th>SNo</th><th>Borrower</th><th>Amount</th><th>Giving Date</th><th>Due Date</th>';
+    html += '<th>Days</th><th>Interest Rate</th><th>Interest</th><th>Commission Rate</th><th>Commission</th>';
+    html += '</tr></thead>';
+    html += '<tbody>';
+
+    results.forEach(r => {
+        html += '<tr>';
+        html += `<td>${r.sno}</td>`;
+        html += `<td>${r.borrower}</td>`;
+        html += `<td>₹${r.amount.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>`;
+        html += `<td>${formatDate(r.givingDate)}</td>`;
+        html += `<td>${formatDate(r.dueDate)}</td>`;
+        html += `<td>${r.daysBetween}</td>`;
+        html += `<td>${r.annualRate.toFixed(2)}%</td>`;
+        html += `<td>₹${r.interest.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>`;
+        html += `<td>${r.hasCommission ? r.commissionRate.toFixed(2) + '%' : '-'}</td>`;
+        html += `<td>${r.hasCommission ? '₹' + r.commission.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '-'}</td>`;
+        html += '</tr>';
+    });
+
+    html += '</tbody></table></div>';
+
+    // Summary section
+    html += '<div style="margin-top: 30px; padding: 20px; background: var(--card-bg); border-radius: 8px;">';
+    html += '<h4>Summary</h4>';
+    html += '<div class="stats-grid">';
+    html += `<div class="stat-card"><div class="stat-label">Total Loans</div><div class="stat-value">${results.length}</div></div>`;
+    html += `<div class="stat-card"><div class="stat-label">Total Amount</div><div class="stat-value">₹${summary.totalAmount.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div></div>`;
+    html += `<div class="stat-card"><div class="stat-label">Total Interest</div><div class="stat-value">₹${summary.totalInterest.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div></div>`;
+    html += `<div class="stat-card"><div class="stat-label">Total Commission</div><div class="stat-value" style="color: var(--success-color);">₹${summary.totalCommission.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div></div>`;
+    html += '</div>';
+    html += '</div>';
+
+    html += '</div>';
+    container.innerHTML = html;
+
+    // Store for CSV export
+    window.lastInterestResults = { results, summary };
+}
+
+// Export interest calculation to CSV
+function exportInterestCalculationCSV() {
+    if (!window.lastInterestResults) {
+        showError('No interest results to export');
+        return;
+    }
+
+    const { results, summary } = window.lastInterestResults;
+    const monthDate = new Date(summary.selectedMonth + '-01');
+    const monthName = monthDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
+
+    let csv = 'LoanTracker Interest Calculator Report\n\n';
+    csv += `Month: ${monthName}\n`;
+    csv += `Calculation Formula: Amount × (Annual Rate / 365) × Days\n\n`;
+
+    csv += `SNo,Borrower,Amount,Giving Date,Due Date,Days,Interest Rate (%),Interest,Commission Rate (%),Commission\n`;
+    results.forEach(r => {
+        csv += `${r.sno},"${r.borrower}",₹${r.amount.toFixed(2)},${r.givingDate},${r.dueDate},${r.daysBetween},${r.annualRate.toFixed(2)},₹${r.interest.toFixed(2)},${r.hasCommission ? r.commissionRate.toFixed(2) : '0'},${r.hasCommission ? '₹' + r.commission.toFixed(2) : '₹0.00'}\n`;
+    });
+
+    csv += '\nSummary\n';
+    csv += `Total Loans,${results.length}\n`;
+    csv += `Total Amount,₹${summary.totalAmount.toFixed(2)}\n`;
+    csv += `Total Interest,₹${summary.totalInterest.toFixed(2)}\n`;
+    csv += `Total Commission,₹${summary.totalCommission.toFixed(2)}\n`;
+
+    downloadCSV(csv, `interest_calculation_${summary.selectedMonth}_${new Date().toISOString().split('T')[0]}.csv`);
+    showSuccess('Interest report exported successfully!');
+}
+
+// Backward compatibility function for old Interest Calculator (now deprecated)
+function calculateInterestByMonth(event) {
+    event.preventDefault();
+    loadLoansForMonth();
+}
+
+// ========================================
+// OLD INTEREST CALCULATOR (DEPRECATED - kept for backward compatibility)
+// ========================================
+
+// Calculate Commission (OLD IMPLEMENTATION - will be removed in future version)
 async function calculateCommission(event) {
     event.preventDefault();
 
@@ -811,6 +1646,17 @@ function formatDueDate(dateString) {
         return 'No due date';
     }
     return formatDate(dateString);
+}
+
+function formatStatus(status) {
+    // Convert status from snake_case to Title Case for display
+    // active -> Active
+    // paid_off -> Paid Off
+    // overdue -> Overdue
+    return status
+        .split('_')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
 }
 
 function downloadCSV(csvContent, filename) {

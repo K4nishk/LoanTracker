@@ -29,6 +29,7 @@ class LoanBase(BaseModel):
     due_date: date = Field(..., description="Due date for loan repayment")
     borrower_group: Optional[str] = Field(None, max_length=50, description="Borrower group/category")
     depositor_group: Optional[str] = Field(None, max_length=50, description="Depositor group/category")
+    paidoff_date: Optional[date] = Field(None, description="Date when loan was paid off")
 
     @field_validator('due_date')
     @classmethod
@@ -53,10 +54,14 @@ class LoanUpdate(BaseModel):
     """Schema for updating a loan (partial updates allowed)."""
     amount: Optional[Decimal] = None
     currency: Optional[Currency] = None
+    borrower_name: Optional[str] = None
+    depositor_name: Optional[str] = None
+    giving_date: Optional[date] = None
     due_date: Optional[date] = None
     status: Optional[LoanStatus] = None
     borrower_group: Optional[str] = None
     depositor_group: Optional[str] = None
+    paidoff_date: Optional[date] = None
 
 
 class LoanResponse(LoanBase):
